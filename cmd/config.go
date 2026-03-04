@@ -17,7 +17,7 @@ func ConfigCommands() *cli.Command {
 				Name:  "set",
 				Usage: "Set configuration values",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "token", Usage: "Bitbucket app password"},
+					&cli.StringFlag{Name: "token", Usage: "Bitbucket API token"},
 					&cli.StringFlag{Name: "workspace", Usage: "Bitbucket workspace"},
 					&cli.StringFlag{Name: "username", Usage: "Bitbucket username"},
 					&cli.StringFlag{Name: "repo", Usage: "Default repo slug (workspace/repo)"},
