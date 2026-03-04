@@ -26,7 +26,7 @@ func (e *NotFoundError) Error() string { return e.Msg }
 // Client is a Bitbucket API HTTP client with Basic Auth and retry logic.
 type Client struct {
 	Username string
-	Password string // app password
+	Password string // API token
 	Verbose  bool
 	BaseURL  string
 	http     *http.Client
