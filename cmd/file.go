@@ -47,7 +47,13 @@ func fileGet(c *cli.Context) error {
 	// Determine ref: commit > branch > default branch
 	ref := c.String("commit")
 	if ref == "" {
+		ref = stringFlagFromArgs(c, "commit")
+	}
+	if ref == "" {
 		ref = c.String("branch")
+	}
+	if ref == "" {
+		ref = stringFlagFromArgs(c, "branch")
 	}
 	if ref == "" {
 		// Get repo default branch

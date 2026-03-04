@@ -15,6 +15,9 @@ import (
 // resolveRepo determines workspace and repo from: flag → config → git detect.
 func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
 	repoFlag := c.String("repo")
+	if repoFlag == "" {
+		repoFlag = stringFlagFromArgs(c, "repo", "r")
+	}
 
 	// 1. From --repo flag
 	if repoFlag != "" {
@@ -61,6 +64,45 @@ func newClient(c *cli.Context) (*bitbucket.Client, error) {
 	}
 
 	return bitbucket.NewClient(token, c.Bool("verbose")), nil
+}
+
+// stringFlagFromArgs extracts a string flag value from remaining args.
+// Workaround for urfave/cli v2 not parsing flags after positional args in nested subcommands.
+func stringFlagFromArgs(c *cli.Context, names ...string) string {
+	args := c.Args().Slice()
+	for i, arg := range args {
+		for _, name := range names {
+			prefix := "-"
+			if len(name) > 1 {
+				prefix = "--"
+			}
+			flag := prefix + name
+			if arg == flag && i+1 < len(args) {
+				return args[i+1]
+			}
+			if strings.HasPrefix(arg, flag+"=") {
+				return arg[len(flag)+1:]
+			}
+		}
+	}
+	return ""
+}
+
+// boolFlagFromArgs checks if a boolean flag is present in remaining args.
+func boolFlagFromArgs(c *cli.Context, names ...string) bool {
+	args := c.Args().Slice()
+	for _, arg := range args {
+		for _, name := range names {
+			prefix := "-"
+			if len(name) > 1 {
+				prefix = "--"
+			}
+			if arg == prefix+name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // exitWithError prints the error and exits with the appropriate code.
