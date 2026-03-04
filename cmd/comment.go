@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"strings"
 
 	"github.com/josejibin/bbgo/internal/bitbucket"
 	"github.com/josejibin/bbgo/internal/output"
@@ -27,9 +30,9 @@ func CommentCommands() *cli.Command {
 			{
 				Name:      "post",
 				Usage:     "Post a comment on a PR",
-				ArgsUsage: "<PR_ID>",
+				ArgsUsage: "<PR_ID> [BODY]",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "body", Required: true, Usage: "Comment body"},
+					&cli.StringFlag{Name: "body", Usage: "Comment body (use - for stdin)"},
 					&cli.StringFlag{Name: "file", Usage: "File path for inline comment"},
 					&cli.IntFlag{Name: "line", Usage: "Line number for inline comment"},
 					&cli.StringFlag{Name: "tag", Usage: "Tag for later cleanup (embedded as HTML comment)"},
@@ -83,7 +86,7 @@ func commentList(c *cli.Context) error {
 		if cm.Deleted {
 			continue
 		}
-		if c.Bool("inline-only") && cm.Inline == nil {
+		if (c.Bool("inline-only") || boolFlagFromArgs(c, "inline-only")) && cm.Inline == nil {
 			continue
 		}
 		filtered = append(filtered, cm)
@@ -132,12 +135,43 @@ func commentPost(c *cli.Context) error {
 		return nil
 	}
 
+	body := c.String("body")
+	if body == "" {
+		// Accept body as second positional arg: bbgo comment post 351 "body text"
+		body = c.Args().Get(1)
+	}
+	if body == "-" {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("reading stdin: %w", err)
+		}
+		body = strings.TrimRight(string(data), "\n")
+	}
+	if body == "" {
+		return fmt.Errorf("body is required: use --body flag, positional arg, or --body - for stdin")
+	}
+
+	file := c.String("file")
+	if file == "" {
+		file = stringFlagFromArgs(c, "file")
+	}
+	line := c.Int("line")
+	if line == 0 {
+		if v := stringFlagFromArgs(c, "line"); v != "" {
+			fmt.Sscanf(v, "%d", &line)
+		}
+	}
+	tag := c.String("tag")
+	if tag == "" {
+		tag = stringFlagFromArgs(c, "tag")
+	}
+
 	comment, err := client.PostComment(
 		workspace, repo, prID,
-		c.String("body"),
-		c.String("file"),
-		c.Int("line"),
-		c.String("tag"),
+		body,
+		file,
+		line,
+		tag,
 	)
 	if err != nil {
 		exitWithError(err)
@@ -173,7 +207,10 @@ func commentDelete(c *cli.Context) error {
 	}
 
 	tag := c.String("tag")
-	dryRun := c.Bool("dry-run")
+	if tag == "" {
+		tag = stringFlagFromArgs(c, "tag")
+	}
+	dryRun := c.Bool("dry-run") || boolFlagFromArgs(c, "dry-run")
 
 	// Delete by tag
 	if tag != "" {

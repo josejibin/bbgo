@@ -202,7 +202,7 @@ func prDiff(c *cli.Context) error {
 		return nil
 	}
 
-	if c.Bool("stat") {
+	if c.Bool("stat") || boolFlagFromArgs(c, "stat") {
 		stats, err := client.GetDiffStat(workspace, repo, id)
 		if err != nil {
 			exitWithError(err)
@@ -368,6 +368,10 @@ func truncate(s string, max int) string {
 
 func getOutputFormat(c *cli.Context) string {
 	if f := c.String("output"); f != "" {
+		return f
+	}
+	// Check remaining args for unparsed --output flag (urfave/cli v2 limitation)
+	if f := stringFlagFromArgs(c, "output", "o"); f != "" {
 		return f
 	}
 	// Walk up the context lineage to find the global --output flag
