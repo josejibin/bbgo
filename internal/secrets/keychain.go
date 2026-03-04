@@ -66,24 +66,33 @@ func ClearToken() error {
 
 // --- Encrypted file fallback ---
 
-func fallbackPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".bbgo", "token")
+func fallbackPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("determining home directory: %w", err)
+	}
+	return filepath.Join(home, ".bbgo", "token"), nil
 }
 
-func deriveKey() []byte {
+func deriveKey() ([]byte, error) {
 	// Derive a key from hostname + username (not secret, but ties token to machine/user)
-	hostname, _ := os.Hostname()
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("getting hostname: %w", err)
+	}
 	user := os.Getenv("USER")
 	if runtime.GOOS == "windows" {
 		user = os.Getenv("USERNAME")
 	}
 	h := sha256.Sum256([]byte("bbgo:" + hostname + ":" + user))
-	return h[:]
+	return h[:], nil
 }
 
 func storeTokenFile(token string) error {
-	key := deriveKey()
+	key, err := deriveKey()
+	if err != nil {
+		return err
+	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return fmt.Errorf("creating cipher: %w", err)
@@ -98,7 +107,10 @@ func storeTokenFile(token string) error {
 	}
 	ciphertext := gcm.Seal(nonce, nonce, []byte(token), nil)
 
-	path := fallbackPath()
+	path, err := fallbackPath()
+	if err != nil {
+		return err
+	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("creating dir: %w", err)
@@ -107,7 +119,10 @@ func storeTokenFile(token string) error {
 }
 
 func loadTokenFile() (string, error) {
-	path := fallbackPath()
+	path, err := fallbackPath()
+	if err != nil {
+		return "", err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -116,7 +131,10 @@ func loadTokenFile() (string, error) {
 		return "", fmt.Errorf("reading token file: %w", err)
 	}
 
-	key := deriveKey()
+	key, err := deriveKey()
+	if err != nil {
+		return "", err
+	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", fmt.Errorf("creating cipher: %w", err)
@@ -138,5 +156,9 @@ func loadTokenFile() (string, error) {
 }
 
 func removeFallbackFile() {
-	os.Remove(fallbackPath())
+	path, err := fallbackPath()
+	if err != nil {
+		return
+	}
+	os.Remove(path)
 }

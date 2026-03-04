@@ -172,13 +172,7 @@ func prShow(c *cli.Context) error {
 		fmt.Println("Reviews:")
 		for _, p := range pr.Participants {
 			if p.Role == "REVIEWER" {
-				status := "pending"
-				if p.Approved {
-					status = "approved"
-				} else if p.State == "changes_requested" {
-					status = "changes_requested"
-				}
-				fmt.Printf("  %s: %s\n", p.User.DisplayName, status)
+				fmt.Printf("  %s: %s\n", p.User.DisplayName, participantStatus(p))
 			}
 		}
 	}

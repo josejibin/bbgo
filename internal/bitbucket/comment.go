@@ -2,6 +2,7 @@ package bitbucket
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -15,10 +16,23 @@ func (c *Client) ListComments(workspace, repo string, prID int) ([]Comment, erro
 	return result.Values, nil
 }
 
+var validTag = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+// ValidateTag checks that a tag contains only safe characters (alphanumeric, hyphens, underscores).
+func ValidateTag(tag string) error {
+	if !validTag.MatchString(tag) {
+		return fmt.Errorf("invalid tag %q: must contain only alphanumeric characters, hyphens, and underscores", tag)
+	}
+	return nil
+}
+
 // PostComment posts a comment on a PR. Supports general, inline, and tagged comments.
 func (c *Client) PostComment(workspace, repo string, prID int, body string, file string, line int, tag string) (*Comment, error) {
 	// Embed tag as HTML comment if provided
 	if tag != "" {
+		if err := ValidateTag(tag); err != nil {
+			return nil, err
+		}
 		body = body + "\n<!-- bbgo:tag:" + tag + " -->"
 	}
 

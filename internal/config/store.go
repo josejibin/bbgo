@@ -14,14 +14,21 @@ type Config struct {
 	DefaultRepo string `yaml:"default_repo,omitempty"`
 }
 
-func DefaultPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".bbgo", "config.yaml")
+func DefaultPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("determining home directory: %w", err)
+	}
+	return filepath.Join(home, ".bbgo", "config.yaml"), nil
 }
 
 func Load(path string) (*Config, error) {
 	if path == "" {
-		path = DefaultPath()
+		var err error
+		path, err = DefaultPath()
+		if err != nil {
+			return nil, err
+		}
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -39,7 +46,11 @@ func Load(path string) (*Config, error) {
 
 func Save(path string, cfg *Config) error {
 	if path == "" {
-		path = DefaultPath()
+		var err error
+		path, err = DefaultPath()
+		if err != nil {
+			return err
+		}
 	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
