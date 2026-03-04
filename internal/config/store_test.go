@@ -12,7 +12,6 @@ func TestLoadSave(t *testing.T) {
 
 	cfg := &Config{
 		Workspace:   "myteam",
-		Username:    "john",
 		DefaultRepo: "myteam/myrepo",
 	}
 
@@ -36,9 +35,6 @@ func TestLoadSave(t *testing.T) {
 
 	if loaded.Workspace != cfg.Workspace {
 		t.Errorf("workspace: got %q, want %q", loaded.Workspace, cfg.Workspace)
-	}
-	if loaded.Username != cfg.Username {
-		t.Errorf("username: got %q, want %q", loaded.Username, cfg.Username)
 	}
 	if loaded.DefaultRepo != cfg.DefaultRepo {
 		t.Errorf("default_repo: got %q, want %q", loaded.DefaultRepo, cfg.DefaultRepo)

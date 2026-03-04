@@ -13,16 +13,16 @@ func testClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.Serv
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	client := NewClient("testuser", "testpass", false)
+	client := NewClient("testtoken", false)
 	client.BaseURL = server.URL
 	return client, server
 }
 
-func TestDoBasicAuth(t *testing.T) {
+func TestDoBearerAuth(t *testing.T) {
 	client, _ := testClient(t, func(w http.ResponseWriter, r *http.Request) {
-		user, pass, ok := r.BasicAuth()
-		if !ok || user != "testuser" || pass != "testpass" {
-			t.Errorf("expected basic auth testuser:testpass, got %q:%q (ok=%v)", user, pass, ok)
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer testtoken" {
+			t.Errorf("expected Bearer testtoken, got %q", auth)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

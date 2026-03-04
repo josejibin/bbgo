@@ -10,7 +10,6 @@ import (
 
 type Config struct {
 	Workspace   string `yaml:"workspace"`
-	Username    string `yaml:"username"`
 	DefaultRepo string `yaml:"default_repo,omitempty"`
 }
 

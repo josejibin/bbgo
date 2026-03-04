@@ -23,23 +23,21 @@ type NotFoundError struct{ Msg string }
 
 func (e *NotFoundError) Error() string { return e.Msg }
 
-// Client is a Bitbucket API HTTP client with Basic Auth and retry logic.
+// Client is a Bitbucket API HTTP client with Bearer auth and retry logic.
 type Client struct {
-	Username string
-	Password string // API token
-	Verbose  bool
-	BaseURL  string
-	http     *http.Client
+	Token   string
+	Verbose bool
+	BaseURL string
+	http    *http.Client
 }
 
 // NewClient creates a new Bitbucket API client.
-func NewClient(username, password string, verbose bool) *Client {
+func NewClient(token string, verbose bool) *Client {
 	return &Client{
-		Username: username,
-		Password: password,
-		Verbose:  verbose,
-		BaseURL:  defaultBaseURL,
-		http:     &http.Client{Timeout: 30 * time.Second},
+		Token:   token,
+		Verbose: verbose,
+		BaseURL: defaultBaseURL,
+		http:    &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -68,7 +66,7 @@ func (c *Client) Do(method, path string, body io.Reader) (*http.Response, error)
 		if err != nil {
 			return nil, fmt.Errorf("creating request: %w", err)
 		}
-		req.SetBasicAuth(c.Username, c.Password)
+		req.Header.Set("Authorization", "Bearer "+c.Token)
 		if bodyBytes != nil {
 			req.Header.Set("Content-Type", "application/json")
 		}
