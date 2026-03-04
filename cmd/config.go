@@ -19,7 +19,6 @@ func ConfigCommands() *cli.Command {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "token", Usage: "Bitbucket API token"},
 					&cli.StringFlag{Name: "workspace", Usage: "Bitbucket workspace"},
-					&cli.StringFlag{Name: "username", Usage: "Bitbucket username"},
 					&cli.StringFlag{Name: "repo", Usage: "Default repo slug (workspace/repo)"},
 				},
 				Action: configSet,
@@ -65,11 +64,6 @@ func configSet(c *cli.Context) error {
 		changed = true
 	}
 
-	if user := c.String("username"); user != "" {
-		cfg.Username = user
-		changed = true
-	}
-
 	if repo := c.String("repo"); repo != "" {
 		cfg.DefaultRepo = repo
 		changed = true
@@ -81,7 +75,7 @@ func configSet(c *cli.Context) error {
 		}
 		fmt.Println("Configuration saved.")
 	} else {
-		fmt.Println("No values specified. Use --token, --workspace, --username, or --repo.")
+		fmt.Println("No values specified. Use --token, --workspace, or --repo.")
 	}
 
 	return nil
@@ -95,7 +89,6 @@ func configShow(c *cli.Context) error {
 	}
 
 	fmt.Printf("workspace: %s\n", valueOrEmpty(cfg.Workspace))
-	fmt.Printf("username:  %s\n", valueOrEmpty(cfg.Username))
 	fmt.Printf("repo:      %s\n", valueOrEmpty(cfg.DefaultRepo))
 
 	// Check if token exists

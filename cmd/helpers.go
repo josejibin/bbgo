@@ -55,23 +55,12 @@ func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
 
 // newClient creates a Bitbucket API client from stored credentials.
 func newClient(c *cli.Context) (*bitbucket.Client, error) {
-	cfgPath := c.String("config")
-	cfg, err := config.Load(cfgPath)
-	if err != nil {
-		return nil, err
-	}
-
 	token := secrets.Token()
 	if token == "" {
 		return nil, fmt.Errorf("no token configured — run `bbgo config set --token`")
 	}
 
-	username := cfg.Username
-	if username == "" {
-		return nil, fmt.Errorf("no username configured — run `bbgo config set --username`")
-	}
-
-	return bitbucket.NewClient(username, token, c.Bool("verbose")), nil
+	return bitbucket.NewClient(token, c.Bool("verbose")), nil
 }
 
 // exitWithError prints the error and exits with the appropriate code.

@@ -43,7 +43,7 @@ internal/
 ## Key Architecture Decisions
 
 - **CLI framework:** `urfave/cli/v2` (not Cobra). Commands are `*cli.Command` structs returned by exported functions (`PRCommands()`, `ConfigCommands()`, etc.) and registered in `main.go`.
-- **Auth:** HTTP Basic Auth (`email:api_token`). Bitbucket deprecated app passwords; API tokens replaced them.
+- **Auth:** Bearer token (`Authorization: Bearer <token>`). Bitbucket deprecated app passwords; API tokens replaced them.
 - **Token storage:** OS keychain first → encrypted file fallback (`~/.bbgo/token`, AES-256-GCM). Token is loaded into unexported `loadedToken` var at startup, accessed via `secrets.Token()`.
 - **Security:** `RedactWriter` wraps `app.Writer` and `app.ErrWriter` in `main.go`. All output passes through `RedactSecrets()` which replaces the token and regex-matched secret patterns.
 - **Repo resolution chain:** `--repo` flag → `config.default_repo` → `git remote origin` auto-detect. Implemented in `cmd/helpers.go:resolveRepo()`.

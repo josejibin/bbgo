@@ -20,7 +20,7 @@ make build
 
 ```bash
 # Configure credentials
-bbgo config set --username your-username --workspace your-workspace
+bbgo config set --workspace your-workspace
 bbgo config set --token YOUR_API_TOKEN
 
 # Verify setup
@@ -43,7 +43,6 @@ bbgo pr create --title "Fix login bug"
 ```bash
 bbgo config set --token <API_TOKEN>         # Store token in OS keychain
 bbgo config set --workspace <WORKSPACE>
-bbgo config set --username <USERNAME>
 bbgo config set --repo <WORKSPACE/REPO>     # Set default repo
 bbgo config show                            # Show current config
 bbgo config verify                          # Test API credentials
