@@ -1,0 +1,8 @@
+bbgo
+*.exe
+*.dll
+*.so
+*.dylib
+.DS_Store
+vendor/
+dist/
