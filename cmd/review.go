@@ -3,9 +3,20 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/josejibin/bbgo/internal/bitbucket"
 	"github.com/josejibin/bbgo/internal/output"
 	"github.com/urfave/cli/v2"
 )
+
+func participantStatus(p bitbucket.Participant) string {
+	if p.Approved {
+		return "approved"
+	}
+	if p.State == "changes_requested" {
+		return "changes_requested"
+	}
+	return "pending"
+}
 
 func ReviewCommands() *cli.Command {
 	return &cli.Command{
@@ -85,16 +96,10 @@ func reviewList(c *cli.Context) error {
 		}
 		var entries []reviewEntry
 		for _, p := range participants {
-			status := "pending"
-			if p.Approved {
-				status = "approved"
-			} else if p.State == "changes_requested" {
-				status = "changes_requested"
-			}
 			entries = append(entries, reviewEntry{
 				User:   p.User.DisplayName,
 				Role:   p.Role,
-				Status: status,
+				Status: participantStatus(p),
 			})
 		}
 		return output.PrintJSON(entries)
@@ -108,13 +113,7 @@ func reviewList(c *cli.Context) error {
 	tbl := output.NewTable()
 	tbl.Row("REVIEWER", "ROLE", "STATUS")
 	for _, p := range participants {
-		status := "pending"
-		if p.Approved {
-			status = "approved"
-		} else if p.State == "changes_requested" {
-			status = "changes_requested"
-		}
-		tbl.Row(p.User.DisplayName, p.Role, status)
+		tbl.Row(p.User.DisplayName, p.Role, participantStatus(p))
 	}
 	tbl.Flush()
 	return nil

@@ -1,6 +1,7 @@
 package bitbucket
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +11,7 @@ import (
 	"time"
 )
 
-const baseURL = "https://api.bitbucket.org"
+const defaultBaseURL = "https://api.bitbucket.org"
 
 // AuthError indicates a 401 response.
 type AuthError struct{ Msg string }
@@ -27,6 +28,7 @@ type Client struct {
 	Username string
 	Password string // app password
 	Verbose  bool
+	BaseURL  string
 	http     *http.Client
 }
 
@@ -36,27 +38,43 @@ func NewClient(username, password string, verbose bool) *Client {
 		Username: username,
 		Password: password,
 		Verbose:  verbose,
+		BaseURL:  defaultBaseURL,
 		http:     &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
 // Do executes an HTTP request with retry on 429.
 func (c *Client) Do(method, path string, body io.Reader) (*http.Response, error) {
-	url := baseURL + path
+	reqURL := c.BaseURL + path
+
+	// Read body once so retries can replay it.
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, fmt.Errorf("reading request body: %w", err)
+		}
+	}
 
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
-		req, err := http.NewRequest(method, url, body)
+		var reqBody io.Reader
+		if bodyBytes != nil {
+			reqBody = bytes.NewReader(bodyBytes)
+		}
+
+		req, err := http.NewRequest(method, reqURL, reqBody)
 		if err != nil {
 			return nil, fmt.Errorf("creating request: %w", err)
 		}
 		req.SetBasicAuth(c.Username, c.Password)
-		if body != nil {
+		if bodyBytes != nil {
 			req.Header.Set("Content-Type", "application/json")
 		}
 
 		if c.Verbose {
-			fmt.Printf("--> %s %s\n", method, url)
+			fmt.Printf("--> %s %s\n", method, reqURL)
 		}
 
 		resp, err := c.http.Do(req)
@@ -87,9 +105,12 @@ func (c *Client) Do(method, path string, body io.Reader) (*http.Response, error)
 		}
 
 		if resp.StatusCode >= 400 {
-			bodyBytes, _ := io.ReadAll(resp.Body)
+			errBody, err := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(bodyBytes))
+			if err != nil {
+				return nil, fmt.Errorf("API error %d (failed to read body: %v)", resp.StatusCode, err)
+			}
+			return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(errBody))
 		}
 
 		return resp, nil
