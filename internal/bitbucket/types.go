@@ -14,9 +14,9 @@ type Branch struct {
 }
 
 type BranchRef struct {
-	Branch     Branch     `json:"branch"`
-	Repository Repository `json:"repository"`
-	Commit     Commit     `json:"commit"`
+	Branch     Branch      `json:"branch"`
+	Repository *Repository `json:"repository,omitempty"`
+	Commit     *Commit     `json:"commit,omitempty"`
 }
 
 type Repository struct {
