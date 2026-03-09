@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 )
 
 // ListPRs returns pull requests for the given workspace/repo.
-func (c *Client) ListPRs(workspace, repo, state, author string, pagelen int) (*PaginatedResponse[PullRequest], error) {
+func (c *Client) ListPRs(workspace, repo, state, author, source, dest string, pagelen int) (*PaginatedResponse[PullRequest], error) {
 	params := url.Values{}
 	if state != "" && state != "open" {
 		if state == "all" {
@@ -21,8 +22,18 @@ func (c *Client) ListPRs(workspace, repo, state, author string, pagelen int) (*P
 	if pagelen > 0 {
 		params.Set("pagelen", fmt.Sprintf("%d", pagelen))
 	}
+	var filters []string
 	if author != "" {
-		params.Set("q", fmt.Sprintf(`author.nickname="%s"`, author))
+		filters = append(filters, fmt.Sprintf(`author.nickname="%s"`, author))
+	}
+	if source != "" {
+		filters = append(filters, fmt.Sprintf(`source.branch.name="%s"`, source))
+	}
+	if dest != "" {
+		filters = append(filters, fmt.Sprintf(`destination.branch.name="%s"`, dest))
+	}
+	if len(filters) > 0 {
+		params.Set("q", strings.Join(filters, " AND "))
 	}
 
 	path := fmt.Sprintf("/2.0/repositories/%s/%s/pullrequests", workspace, repo)
