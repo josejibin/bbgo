@@ -22,6 +22,8 @@ func PRCommands() *cli.Command {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "state", Value: "open", Usage: "Filter by state: open, merged, declined, all"},
 					&cli.StringFlag{Name: "author", Usage: "Filter by author username"},
+					&cli.StringFlag{Name: "source", Usage: "Filter by source branch name"},
+					&cli.StringFlag{Name: "dest", Usage: "Filter by destination branch name"},
 					&cli.StringFlag{Name: "repo", Aliases: []string{"r"}, Usage: "workspace/repo override"},
 					&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Usage: "Output format: text or json"},
 				},
@@ -91,7 +93,7 @@ func prList(c *cli.Context) error {
 		return nil
 	}
 
-	result, err := client.ListPRs(workspace, repo, c.String("state"), c.String("author"), 25)
+	result, err := client.ListPRs(workspace, repo, c.String("state"), c.String("author"), c.String("source"), c.String("dest"), 25)
 	if err != nil {
 		exitWithError(err)
 		return nil
