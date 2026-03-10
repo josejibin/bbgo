@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// ListPRs returns pull requests for the given workspace/repo.
-func (c *Client) ListPRs(workspace, repo, state, author, source, dest string, pagelen int) (*PaginatedResponse[PullRequest], error) {
+// ListPRs returns pull requests for the given workspace/repo (all pages).
+func (c *Client) ListPRs(workspace, repo, state, author, source, dest string, pagelen int) ([]PullRequest, error) {
 	params := url.Values{}
 	if state != "" && state != "open" {
 		if state == "all" {
@@ -41,11 +41,7 @@ func (c *Client) ListPRs(workspace, repo, state, author, source, dest string, pa
 		path += "?" + params.Encode()
 	}
 
-	var result PaginatedResponse[PullRequest]
-	if err := c.GetJSON(path, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return GetAllPages[PullRequest](c, path)
 }
 
 // GetPR returns a single pull request by ID.

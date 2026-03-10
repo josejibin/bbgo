@@ -64,20 +64,17 @@ func commentList(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	comments, err := client.ListComments(workspace, repo, prID)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	// Filter deleted comments
@@ -86,7 +83,7 @@ func commentList(c *cli.Context) error {
 		if cm.Deleted {
 			continue
 		}
-		if (c.Bool("inline-only") || boolFlagFromArgs(c, "inline-only")) && cm.Inline == nil {
+		if getBool(c, "inline-only") && cm.Inline == nil {
 			continue
 		}
 		filtered = append(filtered, cm)
@@ -125,20 +122,20 @@ func commentPost(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
-	body := c.String("body")
+	body := getString(c, "body")
 	if body == "" {
-		// Accept body as second positional arg: bbgo comment post 351 "body text"
-		body = c.Args().Get(1)
+		// Accept body as second positional arg, but only if it's not a flag
+		if arg := c.Args().Get(1); arg != "" && !strings.HasPrefix(arg, "-") {
+			body = arg
+		}
 	}
 	if body == "-" {
 		data, err := io.ReadAll(os.Stdin)
@@ -151,20 +148,9 @@ func commentPost(c *cli.Context) error {
 		return fmt.Errorf("body is required: use --body flag, positional arg, or --body - for stdin")
 	}
 
-	file := c.String("file")
-	if file == "" {
-		file = stringFlagFromArgs(c, "file")
-	}
-	line := c.Int("line")
-	if line == 0 {
-		if v := stringFlagFromArgs(c, "line"); v != "" {
-			fmt.Sscanf(v, "%d", &line)
-		}
-	}
-	tag := c.String("tag")
-	if tag == "" {
-		tag = stringFlagFromArgs(c, "tag")
-	}
+	file := getString(c, "file")
+	line := getInt(c, "line")
+	tag := getString(c, "tag")
 
 	comment, err := client.PostComment(
 		workspace, repo, prID,
@@ -174,12 +160,11 @@ func commentPost(c *cli.Context) error {
 		tag,
 	)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if getOutputFormat(c) == "json" {
-		return output.PrintJSON(map[string]interface{}{
+		return output.PrintJSON(map[string]any{
 			"id": comment.ID,
 		})
 	}
@@ -196,28 +181,22 @@ func commentDelete(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
-	tag := c.String("tag")
-	if tag == "" {
-		tag = stringFlagFromArgs(c, "tag")
-	}
-	dryRun := c.Bool("dry-run") || boolFlagFromArgs(c, "dry-run")
+	tag := getString(c, "tag")
+	dryRun := getBool(c, "dry-run")
 
 	// Delete by tag
 	if tag != "" {
 		comments, err := client.ListComments(workspace, repo, prID)
 		if err != nil {
-			exitWithError(err)
-			return nil
+			return err
 		}
 
 		var toDelete []bitbucket.Comment
@@ -262,8 +241,7 @@ func commentDelete(c *cli.Context) error {
 	}
 
 	if err := client.DeleteComment(workspace, repo, prID, commentID); err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 	fmt.Printf("Deleted comment #%d\n", commentID)
 	return nil
