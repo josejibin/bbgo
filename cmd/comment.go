@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/josejibin/bbgo/internal/bitbucket"
@@ -149,8 +150,18 @@ func commentPost(c *cli.Context) error {
 	}
 
 	file := getString(c, "file")
-	line := getInt(c, "line")
+	line, lineSet, err := getOptionalInt(c, "line")
+	if err != nil {
+		return err
+	}
 	tag := getString(c, "tag")
+
+	if lineSet && line <= 0 {
+		return fmt.Errorf("--line must be greater than zero")
+	}
+	if lineSet && file == "" {
+		return fmt.Errorf("--file is required when --line is set")
+	}
 
 	comment, err := client.PostComment(
 		workspace, repo, prID,
@@ -230,8 +241,8 @@ func commentDelete(c *cli.Context) error {
 	if commentIDStr == "" {
 		return fmt.Errorf("provide a COMMENT_ID or --tag")
 	}
-	var commentID int
-	if _, err := fmt.Sscanf(commentIDStr, "%d", &commentID); err != nil {
+	commentID, err := strconv.Atoi(strings.TrimSpace(commentIDStr))
+	if err != nil {
 		return fmt.Errorf("invalid COMMENT_ID: %q", commentIDStr)
 	}
 

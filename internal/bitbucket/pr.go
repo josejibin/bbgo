@@ -71,12 +71,8 @@ func (c *Client) GetDiff(workspace, repo string, id int) (string, error) {
 
 // GetDiffStat returns the list of changed files for a PR.
 func (c *Client) GetDiffStat(workspace, repo string, id int) ([]DiffStat, error) {
-	path := fmt.Sprintf("/2.0/repositories/%s/%s/pullrequests/%d/diffstat", workspace, repo, id)
-	var result PaginatedResponse[DiffStat]
-	if err := c.GetJSON(path, &result); err != nil {
-		return nil, err
-	}
-	return result.Values, nil
+	path := fmt.Sprintf("/2.0/repositories/%s/%s/pullrequests/%d/diffstat?pagelen=100", workspace, repo, id)
+	return GetAllPages[DiffStat](c, path)
 }
 
 // CreatePR creates a new pull request.
@@ -101,13 +97,13 @@ func (c *Client) GetRepoInfo(workspace, repo string) (*RepoInfo, error) {
 
 // CreatePRRequest is the payload for creating a pull request.
 type CreatePRRequest struct {
-	Title             string     `json:"title"`
-	Description       string     `json:"description,omitempty"`
-	Source            BranchRef  `json:"source"`
-	Destination       BranchRef  `json:"destination"`
-	CloseSourceBranch bool       `json:"close_source_branch"`
-	Reviewers         []UserRef  `json:"reviewers,omitempty"`
-	Draft             bool       `json:"draft,omitempty"`
+	Title             string    `json:"title"`
+	Description       string    `json:"description,omitempty"`
+	Source            BranchRef `json:"source"`
+	Destination       BranchRef `json:"destination"`
+	CloseSourceBranch bool      `json:"close_source_branch"`
+	Reviewers         []UserRef `json:"reviewers,omitempty"`
+	Draft             bool      `json:"draft,omitempty"`
 }
 
 type UserRef struct {
