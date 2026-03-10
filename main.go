@@ -48,14 +48,14 @@ func main() {
 		ErrWriter: errWriter,
 		Before: func(c *cli.Context) error {
 			// Try to load token (ignore errors — token may not be set yet)
-			secrets.LoadToken()
+			_, _ = secrets.LoadToken()
 			return nil
 		},
 		ExitErrHandler: func(c *cli.Context, err error) {
 			if err == nil {
 				return
 			}
-			fmt.Fprintf(errWriter, "Error: %v\n", err)
+			_, _ = fmt.Fprintf(errWriter, "Error: %v\n", err)
 			os.Exit(cmd.ExitCodeForError(err))
 		},
 		Commands: []*cli.Command{
@@ -69,7 +69,7 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		// ExitErrHandler handles action errors; this catches setup errors.
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
