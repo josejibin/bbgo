@@ -22,6 +22,7 @@ make build
 # Configure credentials
 bbgo config set --workspace your-workspace
 bbgo config set --token YOUR_API_TOKEN
+# Or use BBGO_TOKEN for CI/headless usage
 
 # Verify setup
 bbgo config verify
@@ -52,7 +53,7 @@ bbgo config clear-token                     # Remove token from keychain
 ### Pull Requests
 
 ```bash
-bbgo pr list [--state open|merged|declined|all] [--author USER]
+bbgo pr list [--state open|merged|declined|all] [--author USER] [--source BRANCH] [--dest BRANCH]
 bbgo pr show <ID>
 bbgo pr diff <ID> [--stat]
 bbgo pr files <ID>
@@ -64,7 +65,8 @@ bbgo pr create --title "..." [--description "..."] [--source BRANCH] [--dest BRA
 
 ```bash
 bbgo comment list <PR_ID> [--inline-only]
-bbgo comment post <PR_ID> --body "..." [--file PATH] [--line N] [--tag TAG]
+bbgo comment post <PR_ID> --body "..." [--file PATH --line N] [--tag TAG]
+bbgo comment post <PR_ID> --body - [--file PATH --line N] [--tag TAG]   # read body from stdin
 bbgo comment delete <PR_ID> <COMMENT_ID>
 bbgo comment delete <PR_ID> --tag TAG [--dry-run]
 ```
@@ -87,9 +89,9 @@ bbgo file get <PATH> [--commit HASH] [--branch BRANCH] [--repo W/R]
 ## Global Flags
 
 ```
---repo, -r     workspace/repo override
+--repo, -r     workspace/repo override (or BBGO_REPO)
 --verbose      print HTTP request details
---no-color     disable ANSI colors
+--no-color     disable ANSI color output
 --output, -o   json|text (default: text)
 --config       override config file path
 ```
@@ -100,6 +102,7 @@ Default output is human-readable text. Use `--output json` for machine-readable 
 
 ## Security
 
-- Token is stored in the OS keychain (falls back to encrypted file at `~/.bbgo/token`)
-- Token is never written to config files, env vars, or logs
+- Token is stored in the OS keychain (falls back to an encrypted file at `~/.bbgo/token`)
+- `BBGO_TOKEN` is supported for CI/headless environments as an alternative to secure local storage
+- Token is never written to config files or logs
 - All output is passed through a redaction filter
