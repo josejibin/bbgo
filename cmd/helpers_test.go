@@ -92,8 +92,6 @@ func TestDiffStatPath(t *testing.T) {
 }
 
 func TestRequireIntArg(t *testing.T) {
-	// requireIntArg depends on cli.Context, which is complex to set up.
-	// We test the core parsing via Sscanf directly for now.
 	tests := []struct {
 		input string
 		want  int
@@ -106,14 +104,7 @@ func TestRequireIntArg(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			var id int
-			if tt.input == "" {
-				if !tt.err {
-					t.Error("expected error for empty input")
-				}
-				return
-			}
-			_, err := fmt.Sscanf(tt.input, "%d", &id)
+			id, err := requireIntArg(testCLIContext([]string{tt.input}), "PR_ID")
 			if tt.err {
 				if err == nil {
 					t.Error("expected error, got nil")
@@ -127,6 +118,13 @@ func TestRequireIntArg(t *testing.T) {
 				t.Errorf("got %d, want %d", id, tt.want)
 			}
 		})
+	}
+}
+
+func TestRequireIntArgRejectsTrailingText(t *testing.T) {
+	_, err := requireIntArg(testCLIContext([]string{"42abc"}), "PR_ID")
+	if err == nil {
+		t.Fatal("expected error for malformed numeric argument")
 	}
 }
 
