@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/josejibin/bbgo/internal/bitbucket"
@@ -82,17 +83,21 @@ func getBool(c *cli.Context, name string, aliases ...string) bool {
 	return boolFlagFromArgs(c, append([]string{name}, aliases...)...)
 }
 
-// getInt returns an int flag value, falling back to manual arg parsing.
-func getInt(c *cli.Context, name string) int {
-	if v := c.Int(name); v != 0 {
-		return v
+// getOptionalInt returns an int flag value, whether it was set, and any parse error.
+func getOptionalInt(c *cli.Context, name string, aliases ...string) (int, bool, error) {
+	if c.IsSet(name) {
+		return c.Int(name), true, nil
 	}
-	if s := stringFlagFromArgs(c, name); s != "" {
-		var n int
-		fmt.Sscanf(s, "%d", &n)
-		return n
+
+	if s := stringFlagFromArgs(c, append([]string{name}, aliases...)...); s != "" {
+		n, err := strconv.Atoi(strings.TrimSpace(s))
+		if err != nil {
+			return 0, true, fmt.Errorf("invalid --%s value %q (must be a number)", name, s)
+		}
+		return n, true, nil
 	}
-	return 0
+
+	return 0, false, nil
 }
 
 // stringFlagFromArgs extracts a string flag value from remaining args.
@@ -147,4 +152,3 @@ func ExitCodeForError(err error) int {
 		return 1
 	}
 }
-
