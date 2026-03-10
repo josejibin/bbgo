@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/josejibin/bbgo/internal/bitbucket"
@@ -370,8 +371,7 @@ func requireIntArg(c *cli.Context, name string) (int, error) {
 	if arg == "" {
 		return 0, fmt.Errorf("missing required argument: %s", name)
 	}
-	var id int
-	_, err := fmt.Sscanf(arg, "%d", &id)
+	id, err := strconv.Atoi(strings.TrimSpace(arg))
 	if err != nil {
 		return 0, fmt.Errorf("invalid %s: %q (must be a number)", name, arg)
 	}
