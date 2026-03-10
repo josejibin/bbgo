@@ -22,9 +22,18 @@ const (
 // loadedToken holds the token in memory — unexported, never returned in output.
 var loadedToken string
 
+// lastLoadErr stores the most recent LoadToken error for diagnostic messages.
+var lastLoadErr error
+
 // Token returns the currently loaded token.
 func Token() string {
 	return loadedToken
+}
+
+// LastLoadError returns the error from the most recent LoadToken call, if any.
+// Useful for providing diagnostic messages when Token() returns empty.
+func LastLoadError() error {
+	return lastLoadErr
 }
 
 // StoreToken saves the token to the OS keychain, falling back to encrypted file.
@@ -40,20 +49,35 @@ func StoreToken(token string) error {
 	return storeTokenFile(token)
 }
 
-// LoadToken retrieves the token from OS keychain or fallback file.
+// LoadToken retrieves the token from: BBGO_TOKEN env → OS keychain → fallback file.
 func LoadToken() (string, error) {
-	token, err := keyring.Get(serviceName, accountName)
-	if err == nil && token != "" {
+	// 1. Environment variable (useful for headless/CI environments)
+	if token := os.Getenv("BBGO_TOKEN"); token != "" {
 		loadedToken = token
 		return token, nil
 	}
-	// Fallback to encrypted file
-	token, err = loadTokenFile()
-	if err != nil {
-		return "", err
+
+	// 2. OS keychain
+	token, keyringErr := keyring.Get(serviceName, accountName)
+	if keyringErr == nil && token != "" {
+		loadedToken = token
+		return token, nil
 	}
-	loadedToken = token
-	return token, nil
+
+	// 3. Encrypted file fallback
+	token, fileErr := loadTokenFile()
+	if fileErr == nil {
+		loadedToken = token
+		return token, nil
+	}
+
+	// All methods failed — provide helpful diagnostics
+	if keyringErr != nil {
+		lastLoadErr = fmt.Errorf("keychain unavailable (%v), file fallback failed (%v)", keyringErr, fileErr)
+		return "", fmt.Errorf("cannot load token: %v — set BBGO_TOKEN env var or run `bbgo config set --token`", lastLoadErr)
+	}
+	lastLoadErr = fileErr
+	return "", fileErr
 }
 
 // ClearToken removes the token from keychain and fallback file.

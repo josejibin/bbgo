@@ -72,20 +72,17 @@ func reviewList(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	participants, err := client.ListReviewers(workspace, repo, prID)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if getOutputFormat(c) == "json" {
@@ -127,19 +124,16 @@ func reviewApprove(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if err := client.ApprovePR(workspace, repo, prID); err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	fmt.Printf("PR #%d approved.\n", prID)
@@ -154,19 +148,16 @@ func reviewRequestChanges(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if err := client.RequestChanges(workspace, repo, prID); err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	fmt.Printf("Changes requested on PR #%d.\n", prID)
@@ -181,19 +172,16 @@ func reviewUnapprove(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if err := client.UnapprovePR(workspace, repo, prID); err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	fmt.Printf("Approval removed from PR #%d.\n", prID)

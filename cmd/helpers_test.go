@@ -21,9 +21,9 @@ func TestExitCodeForError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := exitCodeForError(tt.err)
+			got := ExitCodeForError(tt.err)
 			if got != tt.want {
-				t.Errorf("exitCodeForError(%v) = %d, want %d", tt.err, got, tt.want)
+				t.Errorf("ExitCodeForError(%v) = %d, want %d", tt.err, got, tt.want)
 			}
 		})
 	}

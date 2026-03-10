@@ -83,34 +83,31 @@ func PRCommands() *cli.Command {
 func prList(c *cli.Context) error {
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
-	result, err := client.ListPRs(workspace, repo, c.String("state"), c.String("author"), c.String("source"), c.String("dest"), 25)
+	prs, err := client.ListPRs(workspace, repo, c.String("state"), c.String("author"), c.String("source"), c.String("dest"), 25)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if getOutputFormat(c) == "json" {
-		return output.PrintJSON(result.Values)
+		return output.PrintJSON(prs)
 	}
 
-	if len(result.Values) == 0 {
+	if len(prs) == 0 {
 		fmt.Println("No pull requests found.")
 		return nil
 	}
 
 	tbl := output.NewTable()
 	tbl.Row("ID", "TITLE", "AUTHOR", "BRANCHES", "STATE", "CREATED")
-	for _, pr := range result.Values {
+	for _, pr := range prs {
 		branches := fmt.Sprintf("%s → %s", pr.Source.Branch.Name, pr.Destination.Branch.Name)
 		created := pr.CreatedOn.Format("2006-01-02")
 		tbl.Row(
@@ -134,20 +131,17 @@ func prShow(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	pr, err := client.GetPR(workspace, repo, id)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if getOutputFormat(c) == "json" {
@@ -194,21 +188,18 @@ func prDiff(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
-	if c.Bool("stat") || boolFlagFromArgs(c, "stat") {
+	if getBool(c, "stat") {
 		stats, err := client.GetDiffStat(workspace, repo, id)
 		if err != nil {
-			exitWithError(err)
-			return nil
+			return err
 		}
 		tbl := output.NewTable()
 		tbl.Row("STATUS", "FILE", "+ADDED", "-REMOVED")
@@ -222,8 +213,7 @@ func prDiff(c *cli.Context) error {
 
 	diff, err := client.GetDiff(workspace, repo, id)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 	fmt.Print(diff)
 	return nil
@@ -237,20 +227,17 @@ func prFiles(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	stats, err := client.GetDiffStat(workspace, repo, id)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if getOutputFormat(c) == "json" {
@@ -277,14 +264,12 @@ func prFiles(c *cli.Context) error {
 func prCreate(c *cli.Context) error {
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	source := c.String("source")
@@ -334,12 +319,11 @@ func prCreate(c *cli.Context) error {
 
 	pr, err := client.CreatePR(workspace, repo, req)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	if getOutputFormat(c) == "json" {
-		return output.PrintJSON(map[string]interface{}{
+		return output.PrintJSON(map[string]any{
 			"id":  pr.ID,
 			"url": pr.Links.HTML.Href,
 		})
@@ -369,11 +353,7 @@ func truncate(s string, max int) string {
 }
 
 func getOutputFormat(c *cli.Context) string {
-	if f := c.String("output"); f != "" {
-		return f
-	}
-	// Check remaining args for unparsed --output flag (urfave/cli v2 limitation)
-	if f := stringFlagFromArgs(c, "output", "o"); f != "" {
+	if f := getString(c, "output", "o"); f != "" {
 		return f
 	}
 	// Walk up the context lineage to find the global --output flag

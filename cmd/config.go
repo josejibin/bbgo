@@ -123,8 +123,7 @@ func configVerify(c *cli.Context) error {
 		} `json:"values"`
 	}
 	if err := client.GetJSON("/2.0/workspaces", &result); err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	fmt.Println("Credentials verified. Accessible workspaces:")

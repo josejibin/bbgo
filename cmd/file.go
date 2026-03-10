@@ -34,26 +34,18 @@ func fileGet(c *cli.Context) error {
 
 	client, err := newClient(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	workspace, repo, err := resolveRepo(c)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	// Determine ref: commit > branch > default branch
-	ref := c.String("commit")
+	ref := getString(c, "commit")
 	if ref == "" {
-		ref = stringFlagFromArgs(c, "commit")
-	}
-	if ref == "" {
-		ref = c.String("branch")
-	}
-	if ref == "" {
-		ref = stringFlagFromArgs(c, "branch")
+		ref = getString(c, "branch")
 	}
 	if ref == "" {
 		// Get repo default branch
@@ -70,8 +62,7 @@ func fileGet(c *cli.Context) error {
 
 	content, err := client.GetFileContent(workspace, repo, ref, filePath)
 	if err != nil {
-		exitWithError(err)
-		return nil
+		return err
 	}
 
 	fmt.Print(content)

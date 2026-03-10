@@ -6,14 +6,10 @@ import (
 	"strings"
 )
 
-// ListComments returns comments on a PR.
+// ListComments returns all comments on a PR (follows pagination).
 func (c *Client) ListComments(workspace, repo string, prID int) ([]Comment, error) {
 	path := fmt.Sprintf("/2.0/repositories/%s/%s/pullrequests/%d/comments?pagelen=100", workspace, repo, prID)
-	var result PaginatedResponse[Comment]
-	if err := c.GetJSON(path, &result); err != nil {
-		return nil, err
-	}
-	return result.Values, nil
+	return GetAllPages[Comment](c, path)
 }
 
 var validTag = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)

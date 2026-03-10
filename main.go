@@ -12,6 +12,8 @@ import (
 var version = "dev"
 
 func main() {
+	errWriter := secrets.NewRedactWriter(os.Stderr)
+
 	app := &cli.App{
 		Name:    "bbgo",
 		Usage:   "Bitbucket Cloud CLI",
@@ -43,11 +45,18 @@ func main() {
 			},
 		},
 		Writer:    secrets.NewRedactWriter(os.Stdout),
-		ErrWriter: secrets.NewRedactWriter(os.Stderr),
+		ErrWriter: errWriter,
 		Before: func(c *cli.Context) error {
 			// Try to load token (ignore errors — token may not be set yet)
 			secrets.LoadToken()
 			return nil
+		},
+		ExitErrHandler: func(c *cli.Context, err error) {
+			if err == nil {
+				return
+			}
+			fmt.Fprintf(errWriter, "Error: %v\n", err)
+			os.Exit(cmd.ExitCodeForError(err))
 		},
 		Commands: []*cli.Command{
 			cmd.ConfigCommands(),
@@ -59,6 +68,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
+		// ExitErrHandler handles action errors; this catches setup errors.
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

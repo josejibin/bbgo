@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/josejibin/bbgo/internal/bitbucket"
@@ -14,10 +13,7 @@ import (
 
 // resolveRepo determines workspace and repo from: flag → config → git detect.
 func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
-	repoFlag := c.String("repo")
-	if repoFlag == "" {
-		repoFlag = stringFlagFromArgs(c, "repo", "r")
-	}
+	repoFlag := getString(c, "repo", "r")
 
 	// 1. From --repo flag
 	if repoFlag != "" {
@@ -60,14 +56,46 @@ func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
 func newClient(c *cli.Context) (*bitbucket.Client, error) {
 	token := secrets.Token()
 	if token == "" {
-		return nil, fmt.Errorf("no token configured — run `bbgo config set --token`")
+		if loadErr := secrets.LastLoadError(); loadErr != nil {
+			return nil, fmt.Errorf("token not available: %v\nRun `bbgo config set --token` to re-store the token", loadErr)
+		}
+		return nil, fmt.Errorf("no token configured — run `bbgo config set --token` or set BBGO_TOKEN env var")
 	}
 
-	return bitbucket.NewClient(token, c.Bool("verbose")), nil
+	return bitbucket.NewClient(token, getBool(c, "verbose")), nil
+}
+
+// getString returns a string flag value, falling back to manual arg parsing.
+// Workaround for urfave/cli v2 not parsing flags after positional args in nested subcommands.
+func getString(c *cli.Context, name string, aliases ...string) string {
+	if v := c.String(name); v != "" {
+		return v
+	}
+	return stringFlagFromArgs(c, append([]string{name}, aliases...)...)
+}
+
+// getBool returns a bool flag value, falling back to manual arg parsing.
+func getBool(c *cli.Context, name string, aliases ...string) bool {
+	if c.Bool(name) {
+		return true
+	}
+	return boolFlagFromArgs(c, append([]string{name}, aliases...)...)
+}
+
+// getInt returns an int flag value, falling back to manual arg parsing.
+func getInt(c *cli.Context, name string) int {
+	if v := c.Int(name); v != 0 {
+		return v
+	}
+	if s := stringFlagFromArgs(c, name); s != "" {
+		var n int
+		fmt.Sscanf(s, "%d", &n)
+		return n
+	}
+	return 0
 }
 
 // stringFlagFromArgs extracts a string flag value from remaining args.
-// Workaround for urfave/cli v2 not parsing flags after positional args in nested subcommands.
 func stringFlagFromArgs(c *cli.Context, names ...string) string {
 	args := c.Args().Slice()
 	for i, arg := range args {
@@ -105,14 +133,8 @@ func boolFlagFromArgs(c *cli.Context, names ...string) bool {
 	return false
 }
 
-// exitWithError prints the error and exits with the appropriate code.
-func exitWithError(err error) {
-	code := exitCodeForError(err)
-	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-	os.Exit(code)
-}
-
-func exitCodeForError(err error) int {
+// ExitCodeForError maps error types to CLI exit codes.
+func ExitCodeForError(err error) int {
 	switch err.(type) {
 	case *bitbucket.AuthError:
 		return 2
@@ -125,3 +147,4 @@ func exitCodeForError(err error) int {
 		return 1
 	}
 }
+

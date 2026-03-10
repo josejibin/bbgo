@@ -7,7 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"strings"
+	"os"
 	"time"
 )
 
@@ -25,8 +25,8 @@ func (e *NotFoundError) Error() string { return e.Msg }
 
 // Client is a Bitbucket API HTTP client with Bearer auth and retry logic.
 type Client struct {
-	Token   string
-	Verbose bool
+	token   string
+	verbose bool
 	BaseURL string
 	http    *http.Client
 }
@@ -34,8 +34,8 @@ type Client struct {
 // NewClient creates a new Bitbucket API client.
 func NewClient(token string, verbose bool) *Client {
 	return &Client{
-		Token:   token,
-		Verbose: verbose,
+		token:   token,
+		verbose: verbose,
 		BaseURL: defaultBaseURL,
 		http:    &http.Client{Timeout: 30 * time.Second},
 	}
@@ -66,13 +66,13 @@ func (c *Client) Do(method, path string, body io.Reader) (*http.Response, error)
 		if err != nil {
 			return nil, fmt.Errorf("creating request: %w", err)
 		}
-		req.Header.Set("Authorization", "Bearer "+c.Token)
+		req.Header.Set("Authorization", "Bearer "+c.token)
 		if bodyBytes != nil {
 			req.Header.Set("Content-Type", "application/json")
 		}
 
-		if c.Verbose {
-			fmt.Printf("--> %s %s\n", method, reqURL)
+		if c.verbose {
+			fmt.Fprintf(os.Stderr, "--> %s %s\n", method, reqURL)
 		}
 
 		resp, err := c.http.Do(req)
@@ -80,8 +80,8 @@ func (c *Client) Do(method, path string, body io.Reader) (*http.Response, error)
 			return nil, fmt.Errorf("HTTP request failed: %w", err)
 		}
 
-		if c.Verbose {
-			fmt.Printf("<-- %d %s\n", resp.StatusCode, resp.Status)
+		if c.verbose {
+			fmt.Fprintf(os.Stderr, "<-- %d %s\n", resp.StatusCode, resp.Status)
 		}
 
 		switch resp.StatusCode {
@@ -94,8 +94,8 @@ func (c *Client) Do(method, path string, body io.Reader) (*http.Response, error)
 		case http.StatusTooManyRequests:
 			resp.Body.Close()
 			wait := time.Duration(math.Pow(2, float64(attempt))) * time.Second
-			if c.Verbose {
-				fmt.Printf("    Rate limited, waiting %v...\n", wait)
+			if c.verbose {
+				fmt.Fprintf(os.Stderr, "    Rate limited, waiting %v...\n", wait)
 			}
 			time.Sleep(wait)
 			lastErr = fmt.Errorf("rate limited (429)")
@@ -128,7 +128,7 @@ func (c *Client) Post(path string, body interface{}) (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshaling body: %w", err)
 	}
-	return c.Do("POST", path, strings.NewReader(string(data)))
+	return c.Do("POST", path, bytes.NewReader(data))
 }
 
 // Delete performs a DELETE request.
@@ -154,4 +154,26 @@ func (c *Client) PostJSON(path string, body, v interface{}) error {
 	}
 	defer resp.Body.Close()
 	return json.NewDecoder(resp.Body).Decode(v)
+}
+
+// GetAllPages fetches all pages of a paginated resource, following Next links.
+func GetAllPages[T any](c *Client, path string) ([]T, error) {
+	var all []T
+	for path != "" {
+		var page PaginatedResponse[T]
+		if err := c.GetJSON(path, &page); err != nil {
+			return nil, err
+		}
+		all = append(all, page.Values...)
+		// Next is a full URL; strip the base URL to get the relative path+query.
+		if page.Next == "" {
+			break
+		}
+		next := page.Next
+		if idx := len(c.BaseURL); len(next) > idx && next[:idx] == c.BaseURL {
+			next = next[idx:]
+		}
+		path = next
+	}
+	return all, nil
 }
