@@ -23,7 +23,7 @@ cmd/
   helpers.go                     # resolveRepo(), newClient(), exitWithError(), getOutputFormat()
   config.go                      # config set/show/clear-token/verify
   pr.go                          # pr list/show/diff/files/create
-  comment.go                     # comment list/post/delete (with tag support)
+  comment.go                     # comment add/submit/pending/discard/list/post/delete
   review.go                      # review list/approve/request-changes/unapprove
   file.go                        # file get
 internal/
@@ -35,6 +35,7 @@ internal/
   bitbucket/file.go              # File content retrieval from /src/{ref}/{path}
   config/store.go                # YAML config at ~/.bbgo/config.yaml (0600 perms)
   git/remote.go                  # Parse Bitbucket SSH/HTTPS remote URLs, detect branch
+  pending/store.go               # Local pending comments store (~/.bbgo/pending_comments.json)
   secrets/keychain.go            # OS keychain (zalando/go-keyring) + AES-GCM file fallback
   secrets/redact.go              # RedactSecrets() + RedactWriter for stdout/stderr
   output/formatter.go            # PrintJSON() + Table (tabwriter)

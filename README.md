@@ -64,9 +64,17 @@ bbgo pr create --title "..." [--description "..."] [--source BRANCH] [--dest BRA
 ### Comments
 
 ```bash
+# Batch workflow (default — avoids per-comment notifications)
+bbgo comment add <PR_ID> --body "..." [--file PATH --line N] [--tag TAG]   # queue locally
+bbgo comment add <PR_ID> --body "..." --now                                # bypass queue, post immediately
+bbgo comment submit <PR_ID>                                                # post all pending comments
+bbgo comment pending <PR_ID>                                               # list pending comments
+bbgo comment discard <PR_ID>                                               # discard pending comments
+
+# Direct commands
 bbgo comment list <PR_ID> [--inline-only]
-bbgo comment post <PR_ID> --body "..." [--file PATH --line N] [--tag TAG]
-bbgo comment post <PR_ID> --body - [--file PATH --line N] [--tag TAG]   # read body from stdin
+bbgo comment post <PR_ID> --body "..." [--file PATH --line N] [--tag TAG]  # post immediately
+bbgo comment post <PR_ID> --body - [--file PATH --line N] [--tag TAG]      # read body from stdin
 bbgo comment delete <PR_ID> <COMMENT_ID>
 bbgo comment delete <PR_ID> --tag TAG [--dry-run]
 ```
