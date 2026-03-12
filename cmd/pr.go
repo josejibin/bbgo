@@ -8,6 +8,7 @@ import (
 	"github.com/josejibin/bbgo/internal/bitbucket"
 	"github.com/josejibin/bbgo/internal/git"
 	"github.com/josejibin/bbgo/internal/output"
+	"github.com/josejibin/bbgo/internal/pending"
 	"github.com/urfave/cli/v2"
 )
 
@@ -178,6 +179,15 @@ func prShow(c *cli.Context) error {
 		fmt.Printf("\n%s\n", pr.Description)
 	}
 
+	// Remind about pending comments
+	store, storeErr := pending.NewStore()
+	if storeErr == nil {
+		pendingComments, _ := store.ForPR(workspace, repo, id)
+		if len(pendingComments) > 0 {
+			_, _ = fmt.Fprintf(c.App.ErrWriter, "\nNote: %d pending comment(s) for this PR. Run 'bbgo comment submit %d' to post, or 'bbgo comment discard %d' to discard.\n", len(pendingComments), id, id)
+		}
+	}
+
 	return nil
 }
 
@@ -284,7 +294,7 @@ func prCreate(c *cli.Context) error {
 
 	// Warn if branch not pushed
 	if !git.IsBranchPushed(source) {
-		fmt.Fprintf(c.App.ErrWriter, "Warning: branch %q may not be pushed to remote\n", source)
+		_, _ = fmt.Fprintf(c.App.ErrWriter, "Warning: branch %q may not be pushed to remote\n", source)
 	}
 
 	dest := c.String("dest")
