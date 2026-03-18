@@ -108,9 +108,62 @@ bbgo file get <PATH> [--commit HASH] [--branch BRANCH] [--repo W/R]
 
 Default output is human-readable text. Use `--output json` for machine-readable JSON.
 
-## Security
+## Security & Token Handling
 
-- Token is stored in the OS keychain (falls back to an encrypted file at `~/.bbgo/token`)
-- `BBGO_TOKEN` is supported for CI/headless environments as an alternative to secure local storage
-- Token is never written to config files or logs
-- All output is passed through a redaction filter
+### Token resolution order
+
+When bbgo needs your API token, it checks these sources in order — the first one that succeeds wins:
+
+1. **`BBGO_TOKEN` environment variable** — best for CI/headless environments where no keyring is available.
+2. **OS keyring** — the default and most secure option for interactive use.
+3. **Encrypted fallback file** (`~/.bbgo/token`) — used automatically when the OS keyring is unavailable.
+
+### Storing a token
+
+```bash
+bbgo config set --token YOUR_API_TOKEN
+```
+
+This attempts to save the token to the OS keyring first. If the keyring is unavailable (e.g., no desktop session, running in a container), the token is saved to the encrypted fallback file instead.
+
+### What is the OS keyring?
+
+The OS keyring (also called keychain) is a credential store provided by your operating system:
+
+| OS    | Backend                  | How it works                                                                 |
+|-------|--------------------------|------------------------------------------------------------------------------|
+| macOS | Keychain (`security`)    | Credentials stored in the login keychain, unlocked when you log in           |
+| Linux | Secret Service (GNOME Keyring / KWallet) | Uses the D-Bus Secret Service API; requires a running desktop session |
+| Windows | Windows Credential Manager | Credentials tied to your Windows user profile                         |
+
+bbgo uses the [go-keyring](https://github.com/zalando/go-keyring) library to access these backends. The token is stored under service `bbgo`, account `bitbucket-token`.
+
+**When the keyring is unavailable** (SSH sessions, containers, headless CI), bbgo falls back to an encrypted file.
+
+### Encrypted file fallback
+
+When the OS keyring isn't available, the token is stored at `~/.bbgo/token`:
+
+- Encrypted with **AES-256-GCM**
+- Encryption key is derived (SHA-256) from `hostname + username` — this ties the token to the machine and user
+- File permissions are set to `0600` (owner read/write only)
+- The `~/.bbgo/` directory is created with `0700` permissions
+
+If the keyring becomes available later (e.g., you switch from SSH to a desktop session), running `bbgo config set --token` again will migrate the token to the keyring and delete the fallback file.
+
+### Clearing the token
+
+```bash
+bbgo config clear-token
+```
+
+This removes the token from both the OS keyring and the fallback file.
+
+### Output redaction
+
+All output (stdout and stderr) passes through a `RedactWriter` that:
+
+- Replaces the loaded token with `[REDACTED]`
+- Matches common secret patterns (`token=...`, `password=...`, `secret=...`, `api_key=...`) and redacts their values
+
+The token is never written to the config file (`~/.bbgo/config.yaml`) or logs.
