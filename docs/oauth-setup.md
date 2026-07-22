@@ -44,7 +44,7 @@ The **Create OAuth client** dialog has three tabs: **Details**, **Authorization*
 |---|---|
 | **Name** | `bbgo CLI` (anything recognizable) |
 | **Description** | `Team CLI for PRs — users authenticate as themselves` |
-| **Learn more URL / EULA URL / Privacy policy URL** | Optional and purely informational (shown as links on the "Grant access" consent screen; Bitbucket never fetches them). Leave blank or point at your bbgo repo / internal wiki. |
+| **Learn more URL / EULA URL / Privacy policy URL** | Optional and purely informational (shown as links on the consent screen; Bitbucket never fetches them). Leave blank or point at your bbgo repo / internal wiki. |
 
 ![Details tab of the Create OAuth client dialog](images/add-client-form.png)
 
@@ -115,8 +115,14 @@ export BBGO_OAUTH_CLIENT_ID=<KEY> BBGO_OAUTH_CLIENT_SECRET=<SECRET>
 bbgo config login
 ```
 
-A browser opens; they sign in to Bitbucket (SSO works) and click **Grant access**. bbgo confirms
-with:
+A browser opens; they sign in to Bitbucket (SSO works) and click **Accept** on the consent
+screen:
+
+![Consent screen shown to each user on first login](images/consent-screen.png)
+
+> Every scope granted to the client is listed here — another reason to keep scopes minimal.
+
+bbgo then confirms with:
 
 ```
 Logged in as Jane Doe (janedoe). PRs and comments will be attributed to this user.
@@ -139,7 +145,7 @@ and path.
 was deleted/recreated, or the user revoked access under *Personal settings → Authorized
 applications*). Re-run `bbgo config login`.
 
-**User sees "Grant access" for the wrong workspace** — OAuth clients belong to one workspace.
+**User sees the consent screen for the wrong workspace** — OAuth clients belong to one workspace.
 If the team spans multiple workspaces, create one client per workspace.
 
 **Headless machines (SSH, containers, CI)** — the browser flow needs a local browser. For CI, use
