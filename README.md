@@ -59,13 +59,13 @@ bbgo config clear-token                     # Remove token from keychain
 
 `bbgo config login` runs a browser-based OAuth 2.0 flow (same pattern as `gcloud auth login`): it starts a temporary listener on `localhost:8976`, opens the Bitbucket authorization page, and exchanges the returned code for tokens. Everything you do is attributed to **your own Bitbucket user** — unlike workspace access tokens, which show up as a bot.
 
-One-time setup (workspace admin — see the full [OAuth setup guide](docs/oauth-setup.md)): **Workspace settings → OAuth consumers → Add consumer** with:
+One-time setup (workspace admin — see the full [OAuth setup guide](docs/oauth-setup.md)): **Workspace settings → OAuth clients → Add client** with:
 
 - Callback URL: `http://localhost:8976/callback`
 - Permissions: Account (read), Repositories (write), Pull requests (write)
 - "This is a private consumer" checked
 
-Each team member then runs `bbgo config login --client-id <key> --client-secret <secret>` once; the client credentials are remembered, so later re-logins are just `bbgo config login`. Access tokens expire after ~2 hours and are refreshed automatically (Bitbucket rotates refresh tokens; bbgo persists the new one on every refresh). If port 8976 is taken, pass `--port N` — but the consumer's callback URL must be registered with that same port.
+Each team member then runs `bbgo config login --client-id <key> --client-secret <secret>` once; the client credentials are remembered, so later re-logins are just `bbgo config login`. Access tokens expire after ~2 hours and are refreshed automatically (Bitbucket rotates refresh tokens; bbgo persists the new one on every refresh). If port 8976 is taken, pass `--port N` — but the client's callback URL must be registered with that same port.
 
 ### Pull Requests
 
@@ -135,7 +135,7 @@ When bbgo needs credentials, it checks these sources in order — the first one 
 2. **OAuth session** (from `bbgo config login`) — auto-refreshed when the access token expires.
 3. **API token** — OS keyring first, then the encrypted fallback file (`~/.bbgo/token`).
 
-The OAuth session (access token, refresh token, consumer credentials) is stored the same way as the API token: OS keyring under service `bbgo`, account `bitbucket-oauth`, with an AES-256-GCM encrypted fallback at `~/.bbgo/oauth`. OAuth access and refresh tokens and the client secret are all covered by output redaction.
+The OAuth session (access token, refresh token, client credentials) is stored the same way as the API token: OS keyring under service `bbgo`, account `bitbucket-oauth`, with an AES-256-GCM encrypted fallback at `~/.bbgo/oauth`. OAuth access and refresh tokens and the client secret are all covered by output redaction.
 
 ### Storing a token
 

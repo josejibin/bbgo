@@ -20,7 +20,7 @@ Version is injected via ldflags: `-X main.version=$(VERSION)`
 ```
 main.go                          # cli.App, global flags, Before hook, RedactWriter wiring
 docs/
-  oauth-setup.md                 # workspace-admin guide for creating the OAuth consumer
+  oauth-setup.md                 # workspace-admin guide for creating the OAuth client
   images/                        # screenshot slots referenced by oauth-setup.md
 cmd/
   helpers.go                     # resolveRepo(), newClient(), exitWithError(), getOutputFormat()
@@ -50,7 +50,7 @@ internal/
 ## Key Architecture Decisions
 
 - **CLI framework:** `urfave/cli/v2` (not Cobra). Commands are `*cli.Command` structs returned by exported functions (`PRCommands()`, `ConfigCommands()`, etc.) and registered in `main.go`.
-- **Auth:** Bearer token (`Authorization: Bearer <token>`). Two ways to get one: OAuth 2.0 browser login (`bbgo config login`, authorization-code flow with localhost callback on port 8976 — preferred, attributes actions to the real user) or a static API token. Resolution order in `cmd/helpers.go:newClient()`: `BBGO_TOKEN` env → OAuth session (auto-refresh via `refreshOAuth()`, refresh tokens rotate) → static token. The OAuth consumer must be registered by a workspace admin with callback `http://localhost:8976/callback`; Bitbucket does not support gcloud-style random loopback ports.
+- **Auth:** Bearer token (`Authorization: Bearer <token>`). Two ways to get one: OAuth 2.0 browser login (`bbgo config login`, authorization-code flow with localhost callback on port 8976 — preferred, attributes actions to the real user) or a static API token. Resolution order in `cmd/helpers.go:newClient()`: `BBGO_TOKEN` env → OAuth session (auto-refresh via `refreshOAuth()`, refresh tokens rotate) → static token. The OAuth client must be registered by a workspace admin with callback `http://localhost:8976/callback`; Bitbucket does not support gcloud-style random loopback ports.
 - **Token storage:** OS keychain first → encrypted file fallback (`~/.bbgo/token`, AES-256-GCM). Token is loaded into unexported `loadedToken` var at startup, accessed via `secrets.Token()`. OAuth sessions are stored the same way as JSON under account `bitbucket-oauth` (fallback `~/.bbgo/oauth`); load/store via `secrets.LoadOAuth()`/`secrets.StoreOAuth()` — `LoadOAuth` returns `(nil, nil)` when not logged in.
 - **Security:** `RedactWriter` wraps `app.Writer` and `app.ErrWriter` in `main.go`. All output passes through `RedactSecrets()` which replaces the token and regex-matched secret patterns.
 - **Repo resolution chain:** `--repo` flag → `config.default_repo` → `git remote origin` auto-detect. Implemented in `cmd/helpers.go:resolveRepo()`.

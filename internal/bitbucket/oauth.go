@@ -21,8 +21,8 @@ const defaultOAuthBaseURL = "https://bitbucket.org"
 // authorization in the browser.
 const loginTimeout = 5 * time.Minute
 
-// OAuthApp is a Bitbucket OAuth 2.0 consumer used for the browser login flow
-// and token refresh. The consumer must be created by a workspace admin with a
+// OAuthApp is a Bitbucket OAuth 2.0 client (consumer) used for the browser login flow
+// and token refresh. The client must be created by a workspace admin with a
 // callback URL of http://localhost:<port>/callback.
 type OAuthApp struct {
 	ClientID     string
@@ -31,7 +31,7 @@ type OAuthApp struct {
 	http         *http.Client
 }
 
-// NewOAuthApp creates an OAuth client for the given consumer credentials.
+// NewOAuthApp creates an OAuth client for the given client credentials.
 func NewOAuthApp(clientID, clientSecret string) *OAuthApp {
 	return &OAuthApp{
 		ClientID:     clientID,
@@ -143,7 +143,7 @@ func deliver(ch chan<- callbackResult, res callbackResult) {
 
 // BrowserLogin runs the authorization-code flow: it listens on
 // 127.0.0.1:port, opens the authorization URL via openBrowser, and exchanges
-// the returned code. port 0 picks a free port (tests only — real consumers
+// the returned code. port 0 picks a free port (tests only — real clients
 // need a fixed callback URL). Progress messages go to out.
 func (a *OAuthApp) BrowserLogin(port int, openBrowser func(url string) error, out io.Writer) (*TokenSet, error) {
 	state, err := randomState()
@@ -153,7 +153,7 @@ func (a *OAuthApp) BrowserLogin(port int, openBrowser func(url string) error, ou
 
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
-		return nil, fmt.Errorf("cannot listen on port %d — something else is using it: %w\nFree the port and retry, or use --port N (the consumer callback URL must be registered as http://localhost:N/callback)", port, err)
+		return nil, fmt.Errorf("cannot listen on port %d — something else is using it: %w\nFree the port and retry, or use --port N (the client callback URL must be registered as http://localhost:N/callback)", port, err)
 	}
 	actualPort := ln.Addr().(*net.TCPAddr).Port
 	redirectURI := fmt.Sprintf("http://localhost:%d/callback", actualPort)

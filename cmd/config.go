@@ -28,9 +28,9 @@ func ConfigCommands() *cli.Command {
 				Name:  "login",
 				Usage: "Log in via OAuth in the browser — actions are attributed to your own user",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "client-id", Usage: "OAuth consumer key (required on first login)", EnvVars: []string{"BBGO_OAUTH_CLIENT_ID"}},
-					&cli.StringFlag{Name: "client-secret", Usage: "OAuth consumer secret (required on first login; prefer the env var on shared machines — flags are visible in `ps`)", EnvVars: []string{"BBGO_OAUTH_CLIENT_SECRET"}},
-					&cli.IntFlag{Name: "port", Value: 8976, Usage: "localhost callback port (must match the consumer callback URL)"},
+					&cli.StringFlag{Name: "client-id", Usage: "OAuth client key (required on first login)", EnvVars: []string{"BBGO_OAUTH_CLIENT_ID"}},
+					&cli.StringFlag{Name: "client-secret", Usage: "OAuth client secret (required on first login; prefer the env var on shared machines — flags are visible in `ps`)", EnvVars: []string{"BBGO_OAUTH_CLIENT_SECRET"}},
+					&cli.IntFlag{Name: "port", Value: 8976, Usage: "localhost callback port (must match the client callback URL)"},
 				},
 				Action: configLogin,
 			},
@@ -101,7 +101,7 @@ func configLogin(c *cli.Context) error {
 	clientID := c.String("client-id")
 	clientSecret := c.String("client-secret")
 
-	// Reuse consumer credentials from a previous login only when neither flag
+	// Reuse client credentials from a previous login only when neither flag
 	// is given — mixing a new client ID with an old stored secret (or vice
 	// versa) would fail confusingly at the token exchange.
 	if clientID == "" && clientSecret == "" {
@@ -111,10 +111,10 @@ func configLogin(c *cli.Context) error {
 		}
 	}
 	if clientID == "" || clientSecret == "" {
-		return fmt.Errorf(`OAuth consumer credentials required for first login.
+		return fmt.Errorf(`OAuth client credentials required for first login.
 
-Ask a workspace admin to create an OAuth consumer:
-  Bitbucket → Workspace settings → OAuth consumers → Add consumer
+Ask a workspace admin to create an OAuth client:
+  Bitbucket → Workspace settings → OAuth clients → Add client
   Callback URL: http://localhost:%d/callback
   Permissions: Account (read), Repositories (write), Pull requests (write)
   Check "This is a private consumer"
