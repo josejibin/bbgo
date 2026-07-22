@@ -23,6 +23,11 @@ type NotFoundError struct{ Msg string }
 
 func (e *NotFoundError) Error() string { return e.Msg }
 
+// ForbiddenError indicates a 403 response.
+type ForbiddenError struct{ Msg string }
+
+func (e *ForbiddenError) Error() string { return e.Msg }
+
 // Client is a Bitbucket API HTTP client with Bearer auth and retry logic.
 type Client struct {
 	token   string
@@ -87,10 +92,13 @@ func (c *Client) Do(method, path string, body io.Reader) (*http.Response, error)
 		switch resp.StatusCode {
 		case http.StatusUnauthorized:
 			resp.Body.Close()
-			return nil, &AuthError{Msg: "Auth failed — run `bbgo config verify`"}
+			return nil, &AuthError{Msg: "authentication failed (HTTP 401) — check with `bbgo config verify`, then re-authenticate with `bbgo config login` (OAuth) or `bbgo config set --token`"}
+		case http.StatusForbidden:
+			resp.Body.Close()
+			return nil, &ForbiddenError{Msg: fmt.Sprintf("access denied (HTTP 403) for %s %s — your account lacks permission on this resource, or the OAuth client is missing a scope", method, path)}
 		case http.StatusNotFound:
 			resp.Body.Close()
-			return nil, &NotFoundError{Msg: "Not found — check repo slug and PR ID"}
+			return nil, &NotFoundError{Msg: fmt.Sprintf("not found (HTTP 404) for %s %s", method, path)}
 		case http.StatusTooManyRequests:
 			resp.Body.Close()
 			wait := time.Duration(math.Pow(2, float64(attempt))) * time.Second

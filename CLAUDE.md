@@ -60,11 +60,14 @@ internal/
 
 ## Error Handling
 
-Exit codes are mapped from error types in `cmd/helpers.go:exitCodeForError()`:
-- `*bitbucket.AuthError` → exit 2 ("Auth failed — run `bbgo config verify`")
-- `*bitbucket.NotFoundError` → exit 3 ("Not found — check repo slug and PR ID")
+Exit codes are mapped from error types in `cmd/helpers.go:ExitCodeForError()`:
+- `*bitbucket.AuthError` → exit 2 (401)
+- `*bitbucket.NotFoundError` → exit 3 (404)
+- `*bitbucket.ForbiddenError` → exit 4 (403 — permission/scope problem)
 - Git detection failures → exit 5 (string match on error message)
 - Everything else → exit 1
+
+404/403 errors include the request method+path (from the client) and are enriched by `cmd/helpers.go:DecorateError()` (called in main's ExitErrHandler) with the resolved repo, where it came from (flag/config/git — tracked by `rememberRepo()`), and actionable hints. `--verbose` also logs the repo resolution and the auth source.
 
 HTTP client retries 429 responses up to 3 times with exponential backoff (1s, 2s, 4s).
 

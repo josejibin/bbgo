@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/josejibin/bbgo/internal/bitbucket"
 	"github.com/josejibin/bbgo/internal/config"
@@ -12,6 +13,24 @@ import (
 	"github.com/josejibin/bbgo/internal/secrets"
 	"github.com/urfave/cli/v2"
 )
+
+// lastRepoResolution records how the most recent resolveRepo call resolved,
+// so DecorateError can explain which repo an API error was about and where
+// that value came from. Safe as a package var: the CLI runs one command per
+// process.
+var lastRepoResolution struct {
+	workspace, repo, source string
+}
+
+func rememberRepo(c *cli.Context, workspace, repo, source string) (string, string) {
+	lastRepoResolution.workspace = workspace
+	lastRepoResolution.repo = repo
+	lastRepoResolution.source = source
+	if getBool(c, "verbose") {
+		_, _ = fmt.Fprintf(c.App.ErrWriter, "--> repo: %s/%s (from %s)\n", workspace, repo, source)
+	}
+	return workspace, repo
+}
 
 // resolveRepo determines workspace and repo from: flag → config → git detect.
 func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
@@ -23,7 +42,8 @@ func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
 		if len(parts) != 2 {
 			return "", "", fmt.Errorf("--repo must be in format workspace/repo")
 		}
-		return parts[0], parts[1], nil
+		ws, r := rememberRepo(c, parts[0], parts[1], "--repo flag")
+		return ws, r, nil
 	}
 
 	// 2. From config
@@ -32,7 +52,8 @@ func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
 	if err == nil && cfg.DefaultRepo != "" {
 		parts := strings.SplitN(cfg.DefaultRepo, "/", 2)
 		if len(parts) == 2 {
-			return parts[0], parts[1], nil
+			ws, r := rememberRepo(c, parts[0], parts[1], "default_repo in ~/.bbgo/config.yaml")
+			return ws, r, nil
 		}
 	}
 
@@ -41,25 +62,56 @@ func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
 		ws, r, gitErr := git.DetectRepo()
 		if gitErr == nil {
 			_ = ws // use workspace from config
-			return cfg.Workspace, r, nil
+			ws2, r2 := rememberRepo(c, cfg.Workspace, r, "config workspace + git remote")
+			return ws2, r2, nil
 		}
 	}
 
 	// 3. From git remote
 	ws, r, gitErr := git.DetectRepo()
 	if gitErr == nil {
-		return ws, r, nil
+		ws2, r2 := rememberRepo(c, ws, r, "git remote origin")
+		return ws2, r2, nil
 	}
 
 	return "", "", fmt.Errorf("cannot determine repo — use --repo flag, set default_repo in config, or run from a git repo with a Bitbucket remote")
+}
+
+// DecorateError appends repo-resolution context and actionable hints to API
+// errors before they are printed. Called by the ExitErrHandler in main.
+func DecorateError(err error) error {
+	if err == nil {
+		return nil
+	}
+	repoCtx := ""
+	if lastRepoResolution.repo != "" {
+		repoCtx = fmt.Sprintf("\nRepo used: %s/%s (from %s)",
+			lastRepoResolution.workspace, lastRepoResolution.repo, lastRepoResolution.source)
+	}
+	switch e := err.(type) {
+	case *bitbucket.NotFoundError:
+		e.Msg += repoCtx + "\nHints: check the repo slug — it is the URL path on bitbucket.org/<workspace>/<slug>, often not the display name;" +
+			"\n       verify the PR/comment ID exists; run `bbgo config verify` to list workspaces you can access;" +
+			"\n       override the repo with --repo <workspace>/<slug>"
+	case *bitbucket.ForbiddenError:
+		e.Msg += repoCtx + "\nHints: run `bbgo config verify` to check access; if using OAuth, the client's scopes are fixed at creation —" +
+			"\n       an admin may need to add the missing scope (see docs/oauth-setup.md)"
+	}
+	return err
 }
 
 // newClient creates a Bitbucket API client from stored credentials.
 // Precedence: BBGO_TOKEN env → OAuth session (auto-refreshed) → stored token.
 func newClient(c *cli.Context) (*bitbucket.Client, error) {
 	verbose := getBool(c, "verbose")
+	logf := func(format string, args ...any) {
+		if verbose {
+			_, _ = fmt.Fprintf(c.App.ErrWriter, format+"\n", args...)
+		}
+	}
 
 	if token := os.Getenv("BBGO_TOKEN"); token != "" {
+		logf("--> auth: BBGO_TOKEN environment variable")
 		return bitbucket.NewClient(token, verbose), nil
 	}
 
@@ -69,10 +121,12 @@ func newClient(c *cli.Context) (*bitbucket.Client, error) {
 	}
 	if creds != nil {
 		if creds.Expired() {
+			logf("--> auth: OAuth access token expired, refreshing...")
 			if err := refreshOAuth(creds); err != nil {
 				return nil, err
 			}
 		}
+		logf("--> auth: OAuth session (access token valid for %s)", time.Until(creds.ExpiresAt).Round(time.Minute))
 		return bitbucket.NewClient(creds.AccessToken, verbose), nil
 	}
 
@@ -84,6 +138,7 @@ func newClient(c *cli.Context) (*bitbucket.Client, error) {
 		return nil, fmt.Errorf("no credentials configured — run `bbgo config login` (OAuth) or `bbgo config set --token`")
 	}
 
+	logf("--> auth: stored API token")
 	return bitbucket.NewClient(token, verbose), nil
 }
 
@@ -184,6 +239,8 @@ func ExitCodeForError(err error) int {
 		return 2
 	case *bitbucket.NotFoundError:
 		return 3
+	case *bitbucket.ForbiddenError:
+		return 4
 	default:
 		if strings.Contains(err.Error(), "not a git repo") || strings.Contains(err.Error(), "no remote origin") {
 			return 5

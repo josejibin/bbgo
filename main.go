@@ -55,6 +55,7 @@ func main() {
 			if err == nil {
 				return
 			}
+			err = cmd.DecorateError(err)
 			_, _ = fmt.Fprintf(errWriter, "Error: %v\n", err)
 			os.Exit(cmd.ExitCodeForError(err))
 		},
