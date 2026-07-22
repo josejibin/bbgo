@@ -30,9 +30,9 @@ behalf. Tokens auto-refresh; users never copy/paste anything.
 1. Go to [bitbucket.org](https://bitbucket.org) and open your workspace.
 2. Click the workspace avatar → **Workspace settings**.
 3. In the left sidebar under **Apps and features**, click **OAuth clients**.
-4. Click **Add client**.
+4. Click **Create OAuth client**.
 
-<!-- screenshot: images/oauth-clients-page.png — the OAuth clients list with the "Add client" button -->
+![OAuth clients page with the Create OAuth client button](images/oauth-clients-page.png)
 
 ## Step 2 — Fill in the client form
 
