@@ -164,14 +164,40 @@ func TestBrowserLogin(t *testing.T) {
 	}
 }
 
-func TestBrowserLoginRejectsBadState(t *testing.T) {
+// TestBrowserLoginIgnoresBadState verifies that requests with a wrong state
+// (drive-by GETs from other local processes or web pages) neither abort the
+// login nor deliver a code — the legitimate callback still succeeds after.
+func TestBrowserLoginIgnoresBadState(t *testing.T) {
+	tokenSrv := newTokenServer(t, "authorization_code", map[string]any{
+		"access_token":  "at-good",
+		"refresh_token": "rt-good",
+		"expires_in":    7200,
+	}, http.StatusOK)
+	defer tokenSrv.Close()
+
 	app := NewOAuthApp("test-id", "test-secret")
+	app.BaseURL = tokenSrv.URL
 
 	fakeBrowser := func(authURL string) error {
 		parsed, _ := url.Parse(authURL)
-		redirect := parsed.Query().Get("redirect_uri")
+		q := parsed.Query()
+		redirect := q.Get("redirect_uri")
+		state := q.Get("state")
 		go func() {
-			resp, err := http.Get(redirect + "?code=the-code&state=wrong")
+			// Drive-by requests with bad/missing state must be ignored...
+			for _, bad := range []string{"?code=evil&state=wrong", "?error=x&error_description=%1b[2Jpwned"} {
+				resp, err := http.Get(redirect + bad)
+				if err != nil {
+					t.Errorf("drive-by request failed: %v", err)
+					return
+				}
+				resp.Body.Close()
+				if resp.StatusCode != http.StatusBadRequest {
+					t.Errorf("drive-by request got %d, want 400", resp.StatusCode)
+				}
+			}
+			// ...and the legitimate callback still wins.
+			resp, err := http.Get(fmt.Sprintf("%s?code=the-code&state=%s", redirect, state))
 			if err == nil {
 				resp.Body.Close()
 			}
@@ -179,8 +205,22 @@ func TestBrowserLoginRejectsBadState(t *testing.T) {
 		return nil
 	}
 
-	_, err := app.BrowserLogin(0, fakeBrowser, io.Discard)
-	if err == nil || !strings.Contains(err.Error(), "state mismatch") {
-		t.Fatalf("expected state mismatch error, got %v", err)
+	ts, err := app.BrowserLogin(0, fakeBrowser, io.Discard)
+	if err != nil {
+		t.Fatalf("BrowserLogin: %v", err)
+	}
+	if ts.AccessToken != "at-good" {
+		t.Errorf("AccessToken = %q", ts.AccessToken)
+	}
+}
+
+func TestSanitizeParam(t *testing.T) {
+	in := "\x1b[2Jrun this\x07 command\x00"
+	if got := sanitizeParam(in); got != "[2Jrun this command" {
+		t.Errorf("sanitizeParam = %q", got)
+	}
+	long := strings.Repeat("a", 300)
+	if got := sanitizeParam(long); len(got) != 200 {
+		t.Errorf("length cap = %d, want 200", len(got))
 	}
 }

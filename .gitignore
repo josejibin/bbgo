@@ -6,3 +6,4 @@ bbgo
 .DS_Store
 vendor/
 dist/
+.claude/settings.local.json*

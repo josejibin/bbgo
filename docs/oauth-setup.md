@@ -81,6 +81,14 @@ Each member runs, once:
 bbgo config login --client-id <KEY> --client-secret <SECRET>
 ```
 
+On shared/multi-user machines, prefer environment variables so the secret never appears in `ps`
+output:
+
+```bash
+export BBGO_OAUTH_CLIENT_ID=<KEY> BBGO_OAUTH_CLIENT_SECRET=<SECRET>
+bbgo config login
+```
+
 A browser opens; they sign in to Bitbucket (SSO works) and click **Grant access**. bbgo confirms
 with:
 

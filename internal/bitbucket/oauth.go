@@ -3,6 +3,7 @@ package bitbucket
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -161,18 +162,20 @@ func (a *OAuthApp) BrowserLogin(port int, openBrowser func(url string) error, ou
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
+		// Ignore requests without a valid state: any local process or web
+		// page can GET this port, and such requests must be able to neither
+		// abort the login nor inject content into the terminal output.
+		if subtle.ConstantTimeCompare([]byte(q.Get("state")), []byte(state)) != 1 {
+			http.Error(w, "Invalid request. You can close this tab.", http.StatusBadRequest)
+			return
+		}
 		if e := q.Get("error"); e != "" {
-			desc := q.Get("error_description")
+			desc := sanitizeParam(q.Get("error_description"))
 			if desc == "" {
-				desc = e
+				desc = sanitizeParam(e)
 			}
 			http.Error(w, "Authorization failed. You can close this tab.", http.StatusBadRequest)
 			deliver(resultCh, callbackResult{err: fmt.Errorf("authorization denied: %s", desc)})
-			return
-		}
-		if q.Get("state") != state {
-			http.Error(w, "State mismatch. You can close this tab.", http.StatusBadRequest)
-			deliver(resultCh, callbackResult{err: fmt.Errorf("state mismatch in OAuth callback")})
 			return
 		}
 		code := q.Get("code")
@@ -209,6 +212,22 @@ func (a *OAuthApp) BrowserLogin(port int, openBrowser func(url string) error, ou
 	case <-time.After(loginTimeout):
 		return nil, fmt.Errorf("timed out waiting for browser authorization (%s)", loginTimeout)
 	}
+}
+
+// sanitizeParam strips control characters (ANSI/OSC escapes etc.) from a
+// callback query value so it is safe to print to the terminal, and caps its
+// length.
+func sanitizeParam(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1
+		}
+		return r
+	}, s)
+	if len(s) > 200 {
+		s = s[:200]
+	}
+	return s
 }
 
 func randomState() (string, error) {
