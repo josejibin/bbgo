@@ -9,6 +9,16 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// DefaultOAuthClientID and DefaultOAuthClientSecret can be injected at build
+// time (see `make build-team`) to ship a team binary with gcloud-style
+// zero-config login. Safe to embed as long as the OAuth client has the
+// Client credentials grant disabled: the pair can then only start a browser
+// login that still requires the user to sign in and consent (RFC 8252).
+var (
+	DefaultOAuthClientID     string
+	DefaultOAuthClientSecret string
+)
+
 func ConfigCommands() *cli.Command {
 	return &cli.Command{
 		Name:  "config",
@@ -109,6 +119,12 @@ func configLogin(c *cli.Context) error {
 			clientID = prev.ClientID
 			clientSecret = prev.ClientSecret
 		}
+	}
+	// Fall back to build-time embedded credentials (team builds).
+	if clientID == "" && clientSecret == "" && DefaultOAuthClientID != "" && DefaultOAuthClientSecret != "" {
+		clientID = DefaultOAuthClientID
+		clientSecret = DefaultOAuthClientSecret
+		secrets.RegisterSecret(clientSecret)
 	}
 	if clientID == "" || clientSecret == "" {
 		return fmt.Errorf(`OAuth client credentials required for first login.

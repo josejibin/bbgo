@@ -67,6 +67,20 @@ One-time setup (workspace admin — see the full [OAuth setup guide](docs/oauth-
 
 Each team member then runs `bbgo config login --client-id <key> --client-secret <secret>` once; the client credentials are remembered, so later re-logins are just `bbgo config login`. Access tokens expire after ~2 hours and are refreshed automatically (Bitbucket rotates refresh tokens; bbgo persists the new one on every refresh). If port 8976 is taken, pass `--port N` — but the client's callback URL must be registered with that same port.
 
+#### Team builds: zero-config login (optional)
+
+`gcloud auth login` needs no client ID because Google ships its own pre-registered OAuth client inside the gcloud binary. bbgo can do the same for your team:
+
+```bash
+make build-team CLIENT_ID=<key> CLIENT_SECRET=<secret>
+```
+
+Distribute that binary and everyone logs in with a plain `bbgo config login` — no flags, no credential sharing. The credentials never appear in the source tree or git history: they are injected at build time via `-ldflags` and exist only inside the produced binary. Build it in CI with the secret held as a secured pipeline variable; if building locally, export `CLIENT_SECRET` from your password manager rather than typing it inline (command lines land in shell history).
+
+**Security note:** anyone holding the binary can extract the embedded secret (`strings bbgo`), so treat it as *distributable*, not secret. This is the same model gcloud and gh use, and RFC 8252 (OAuth for native apps) explicitly accepts it — the security comes from user consent, not the secret. It is safe **only** because the OAuth client has the **Client credentials grant disabled**: the ID+secret pair cannot mint tokens by itself; all it can do is start a browser login that still requires a human to sign in and click *Grant access*. Never embed credentials of a client with Client credentials enabled. If the secret ever needs revoking, rotate it in Bitbucket and rebuild.
+
+Credential precedence is unchanged — `--client-id`/`--client-secret` flags or `BBGO_OAUTH_CLIENT_*` env vars → credentials stored from a previous login → embedded defaults — so a plain `make build` binary (nothing embedded) works exactly as before.
+
 ### Pull Requests
 
 ```bash

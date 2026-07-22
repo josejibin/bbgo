@@ -15,6 +15,8 @@ go build -o bbgo .  # quick build without version injection
 
 Version is injected via ldflags: `-X main.version=$(VERSION)`
 
+`make build-team CLIENT_ID=... CLIENT_SECRET=...` additionally injects `cmd.DefaultOAuthClientID`/`cmd.DefaultOAuthClientSecret` for zero-config `bbgo config login` (used only when no flags/env/stored credentials exist; requires the OAuth client's Client credentials grant to be disabled).
+
 ## Project Layout
 
 ```

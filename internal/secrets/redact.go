@@ -15,6 +15,9 @@ var secretPattern = regexp.MustCompile(
 // secrets) that must never appear in output.
 var registeredSecrets []string
 
+// RegisterSecret adds a literal value to the redaction list.
+func RegisterSecret(s string) { registerSecret(s) }
+
 // registerSecret adds a literal value to the redaction list.
 func registerSecret(s string) {
 	if s == "" || slices.Contains(registeredSecrets, s) {

@@ -94,7 +94,14 @@ with copy buttons). You can retrieve both later from the client's row in the lis
 
 ## Step 4 — Tell the team
 
-Each member runs, once:
+**Option A — zero-config team binary (recommended):** build bbgo with the credentials embedded
+(`make build-team CLIENT_ID=<key> CLIENT_SECRET=<secret>`, ideally in CI with the secret as a
+secured variable) and distribute the binary. Team members just run `bbgo config login` — same
+model as `gcloud auth login`. See "Team builds" in the README for the security reasoning (short
+version: the embedded pair is extractable from the binary but can only *start* a consent-requiring
+browser login, because Client credentials is disabled — which is why Step 2 insists on that).
+
+**Option B — share the credentials:** each member runs, once:
 
 ```bash
 bbgo config login --client-id <KEY> --client-secret <SECRET>
