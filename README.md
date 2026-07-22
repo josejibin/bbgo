@@ -59,7 +59,7 @@ bbgo config clear-token                     # Remove token from keychain
 
 `bbgo config login` runs a browser-based OAuth 2.0 flow (same pattern as `gcloud auth login`): it starts a temporary listener on `localhost:8976`, opens the Bitbucket authorization page, and exchanges the returned code for tokens. Everything you do is attributed to **your own Bitbucket user** — unlike workspace access tokens, which show up as a bot.
 
-One-time setup (workspace admin): **Workspace settings → OAuth consumers → Add consumer** with:
+One-time setup (workspace admin — see the full [OAuth setup guide](docs/oauth-setup.md)): **Workspace settings → OAuth consumers → Add consumer** with:
 
 - Callback URL: `http://localhost:8976/callback`
 - Permissions: Account (read), Repositories (write), Pull requests (write)

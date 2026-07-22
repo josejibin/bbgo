@@ -19,6 +19,9 @@ Version is injected via ldflags: `-X main.version=$(VERSION)`
 
 ```
 main.go                          # cli.App, global flags, Before hook, RedactWriter wiring
+docs/
+  oauth-setup.md                 # workspace-admin guide for creating the OAuth consumer
+  images/                        # screenshot slots referenced by oauth-setup.md
 cmd/
   helpers.go                     # resolveRepo(), newClient(), exitWithError(), getOutputFormat()
   config.go                      # config set/show/clear-token/verify/login/logout
