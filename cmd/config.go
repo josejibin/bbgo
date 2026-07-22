@@ -29,7 +29,7 @@ func ConfigCommands() *cli.Command {
 				Usage: "Log in via OAuth in the browser — actions are attributed to your own user",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "client-id", Usage: "OAuth client key (required on first login)", EnvVars: []string{"BBGO_OAUTH_CLIENT_ID"}},
-					&cli.StringFlag{Name: "client-secret", Usage: "OAuth client secret (required on first login; prefer the env var on shared machines — flags are visible in `ps`)", EnvVars: []string{"BBGO_OAUTH_CLIENT_SECRET"}},
+					&cli.StringFlag{Name: "client-secret", Usage: "OAuth client secret (required on first login; prefer the env var on shared machines — flags are visible in ps output)", EnvVars: []string{"BBGO_OAUTH_CLIENT_SECRET"}},
 					&cli.IntFlag{Name: "port", Value: 8976, Usage: "localhost callback port (must match the client callback URL)"},
 				},
 				Action: configLogin,
