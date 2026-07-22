@@ -3,6 +3,7 @@ package secrets
 import (
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -10,10 +11,26 @@ var secretPattern = regexp.MustCompile(
 	`(?i)(token|password|secret|api[_-]?key)\s*[:=]\s*\S+`,
 )
 
-// RedactSecrets replaces the loaded token and known secret patterns in s.
+// registeredSecrets holds additional literal secrets (OAuth tokens, client
+// secrets) that must never appear in output.
+var registeredSecrets []string
+
+// registerSecret adds a literal value to the redaction list.
+func registerSecret(s string) {
+	if s == "" || slices.Contains(registeredSecrets, s) {
+		return
+	}
+	registeredSecrets = append(registeredSecrets, s)
+}
+
+// RedactSecrets replaces the loaded token, registered secrets, and known
+// secret patterns in s.
 func RedactSecrets(s string) string {
 	if loadedToken != "" {
 		s = strings.ReplaceAll(s, loadedToken, "[REDACTED]")
+	}
+	for _, secret := range registeredSecrets {
+		s = strings.ReplaceAll(s, secret, "[REDACTED]")
 	}
 	s = secretPattern.ReplaceAllString(s, "$1=[REDACTED]")
 	return s

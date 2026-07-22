@@ -19,8 +19,11 @@ make build
 ## Quick Start
 
 ```bash
-# Configure credentials
+# Configure credentials — OAuth browser login (recommended; PRs attributed to you)
 bbgo config set --workspace your-workspace
+bbgo config login --client-id <KEY> --client-secret <SECRET>
+
+# Or use an API token (if your org allows them)
 bbgo config set --token YOUR_API_TOKEN
 # Or use BBGO_TOKEN for CI/headless usage
 
@@ -42,6 +45,8 @@ bbgo pr create --title "Fix login bug"
 ### Config
 
 ```bash
+bbgo config login [--client-id K --client-secret S] [--port N]   # OAuth browser login
+bbgo config logout                          # Remove OAuth session
 bbgo config set --token <API_TOKEN>         # Store token in OS keychain
 bbgo config set --workspace <WORKSPACE>
 bbgo config set --repo <WORKSPACE/REPO>     # Set default repo
@@ -49,6 +54,18 @@ bbgo config show                            # Show current config
 bbgo config verify                          # Test API credentials
 bbgo config clear-token                     # Remove token from keychain
 ```
+
+#### OAuth login
+
+`bbgo config login` runs a browser-based OAuth 2.0 flow (same pattern as `gcloud auth login`): it starts a temporary listener on `localhost:8976`, opens the Bitbucket authorization page, and exchanges the returned code for tokens. Everything you do is attributed to **your own Bitbucket user** — unlike workspace access tokens, which show up as a bot.
+
+One-time setup (workspace admin): **Workspace settings → OAuth consumers → Add consumer** with:
+
+- Callback URL: `http://localhost:8976/callback`
+- Permissions: Account (read), Repositories (write), Pull requests (write)
+- "This is a private consumer" checked
+
+Each team member then runs `bbgo config login --client-id <key> --client-secret <secret>` once; the client credentials are remembered, so later re-logins are just `bbgo config login`. Access tokens expire after ~2 hours and are refreshed automatically (Bitbucket rotates refresh tokens; bbgo persists the new one on every refresh). If port 8976 is taken, pass `--port N` — but the consumer's callback URL must be registered with that same port.
 
 ### Pull Requests
 
@@ -110,13 +127,15 @@ Default output is human-readable text. Use `--output json` for machine-readable 
 
 ## Security & Token Handling
 
-### Token resolution order
+### Credential resolution order
 
-When bbgo needs your API token, it checks these sources in order — the first one that succeeds wins:
+When bbgo needs credentials, it checks these sources in order — the first one that succeeds wins:
 
 1. **`BBGO_TOKEN` environment variable** — best for CI/headless environments where no keyring is available.
-2. **OS keyring** — the default and most secure option for interactive use.
-3. **Encrypted fallback file** (`~/.bbgo/token`) — used automatically when the OS keyring is unavailable.
+2. **OAuth session** (from `bbgo config login`) — auto-refreshed when the access token expires.
+3. **API token** — OS keyring first, then the encrypted fallback file (`~/.bbgo/token`).
+
+The OAuth session (access token, refresh token, consumer credentials) is stored the same way as the API token: OS keyring under service `bbgo`, account `bitbucket-oauth`, with an AES-256-GCM encrypted fallback at `~/.bbgo/oauth`. OAuth access and refresh tokens and the client secret are all covered by output redaction.
 
 ### Storing a token
 

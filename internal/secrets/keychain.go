@@ -113,6 +113,30 @@ func deriveKey() ([]byte, error) {
 }
 
 func storeTokenFile(token string) error {
+	path, err := fallbackPath()
+	if err != nil {
+		return err
+	}
+	return encryptToFile(path, []byte(token))
+}
+
+func loadTokenFile() (string, error) {
+	path, err := fallbackPath()
+	if err != nil {
+		return "", err
+	}
+	data, err := decryptFromFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("no token stored — run `bbgo config set --token`")
+		}
+		return "", err
+	}
+	return string(data), nil
+}
+
+// encryptToFile writes AES-GCM encrypted data to path with 0600 perms.
+func encryptToFile(path string, plaintext []byte) error {
 	key, err := deriveKey()
 	if err != nil {
 		return err
@@ -129,12 +153,8 @@ func storeTokenFile(token string) error {
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return fmt.Errorf("generating nonce: %w", err)
 	}
-	ciphertext := gcm.Seal(nonce, nonce, []byte(token), nil)
+	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
 
-	path, err := fallbackPath()
-	if err != nil {
-		return err
-	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("creating dir: %w", err)
@@ -142,41 +162,39 @@ func storeTokenFile(token string) error {
 	return os.WriteFile(path, ciphertext, 0600)
 }
 
-func loadTokenFile() (string, error) {
-	path, err := fallbackPath()
-	if err != nil {
-		return "", err
-	}
+// decryptFromFile reads and decrypts a file written by encryptToFile.
+// Returns the underlying os.IsNotExist error when the file is absent.
+func decryptFromFile(path string) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", fmt.Errorf("no token stored — run `bbgo config set --token`")
+			return nil, err
 		}
-		return "", fmt.Errorf("reading token file: %w", err)
+		return nil, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
 	}
 
 	key, err := deriveKey()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", fmt.Errorf("creating cipher: %w", err)
+		return nil, fmt.Errorf("creating cipher: %w", err)
 	}
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("creating GCM: %w", err)
+		return nil, fmt.Errorf("creating GCM: %w", err)
 	}
 	nonceSize := gcm.NonceSize()
 	if len(data) < nonceSize {
-		return "", fmt.Errorf("token file corrupted")
+		return nil, fmt.Errorf("%s corrupted", filepath.Base(path))
 	}
 	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", fmt.Errorf("decrypting token: %w", err)
+		return nil, fmt.Errorf("decrypting %s: %w", filepath.Base(path), err)
 	}
-	return string(plaintext), nil
+	return plaintext, nil
 }
 
 func removeFallbackFile() {

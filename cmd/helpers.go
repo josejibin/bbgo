@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -54,16 +55,54 @@ func resolveRepo(c *cli.Context) (workspace, repo string, err error) {
 }
 
 // newClient creates a Bitbucket API client from stored credentials.
+// Precedence: BBGO_TOKEN env → OAuth session (auto-refreshed) → stored token.
 func newClient(c *cli.Context) (*bitbucket.Client, error) {
+	verbose := getBool(c, "verbose")
+
+	if token := os.Getenv("BBGO_TOKEN"); token != "" {
+		return bitbucket.NewClient(token, verbose), nil
+	}
+
+	creds, err := secrets.LoadOAuth()
+	if err != nil {
+		return nil, fmt.Errorf("loading OAuth session: %w", err)
+	}
+	if creds != nil {
+		if creds.Expired() {
+			if err := refreshOAuth(creds); err != nil {
+				return nil, err
+			}
+		}
+		return bitbucket.NewClient(creds.AccessToken, verbose), nil
+	}
+
 	token := secrets.Token()
 	if token == "" {
 		if loadErr := secrets.LastLoadError(); loadErr != nil {
-			return nil, fmt.Errorf("token not available: %v\nRun `bbgo config set --token` to re-store the token", loadErr)
+			return nil, fmt.Errorf("token not available: %v\nRun `bbgo config login` or `bbgo config set --token`", loadErr)
 		}
-		return nil, fmt.Errorf("no token configured — run `bbgo config set --token` or set BBGO_TOKEN env var")
+		return nil, fmt.Errorf("no credentials configured — run `bbgo config login` (OAuth) or `bbgo config set --token`")
 	}
 
-	return bitbucket.NewClient(token, getBool(c, "verbose")), nil
+	return bitbucket.NewClient(token, verbose), nil
+}
+
+// refreshOAuth renews an expired OAuth session in place and persists it.
+func refreshOAuth(creds *secrets.OAuthCredentials) error {
+	app := bitbucket.NewOAuthApp(creds.ClientID, creds.ClientSecret)
+	ts, err := app.Refresh(creds.RefreshToken)
+	if err != nil {
+		return &bitbucket.AuthError{Msg: fmt.Sprintf("OAuth session expired and refresh failed (%v) — run `bbgo config login` to re-authenticate", err)}
+	}
+	creds.AccessToken = ts.AccessToken
+	creds.ExpiresAt = ts.ExpiresAt
+	if ts.RefreshToken != "" {
+		creds.RefreshToken = ts.RefreshToken
+	}
+	if err := secrets.StoreOAuth(creds); err != nil {
+		return fmt.Errorf("storing refreshed OAuth session: %w", err)
+	}
+	return nil
 }
 
 // getString returns a string flag value, falling back to manual arg parsing.

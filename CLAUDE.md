@@ -21,7 +21,8 @@ Version is injected via ldflags: `-X main.version=$(VERSION)`
 main.go                          # cli.App, global flags, Before hook, RedactWriter wiring
 cmd/
   helpers.go                     # resolveRepo(), newClient(), exitWithError(), getOutputFormat()
-  config.go                      # config set/show/clear-token/verify
+  config.go                      # config set/show/clear-token/verify/login/logout
+  browser.go                     # openBrowser() per-OS default browser launcher
   pr.go                          # pr list/show/diff/files/create
   comment.go                     # comment add/submit/pending/discard/list/post/delete
   review.go                      # review list/approve/request-changes/unapprove
@@ -30,6 +31,7 @@ internal/
   bitbucket/client.go            # HTTP client, Basic Auth, retry on 429, typed errors
   bitbucket/types.go             # API response structs (PullRequest, Comment, etc.)
   bitbucket/pr.go                # PR API operations + CreatePRRequest type
+  bitbucket/oauth.go             # OAuth 2.0 flow: BrowserLogin (loopback), ExchangeCode, Refresh
   bitbucket/comment.go           # Comment API + tag embedding via HTML comments
   bitbucket/review.go            # Review API (approve, unapprove, request-changes)
   bitbucket/file.go              # File content retrieval from /src/{ref}/{path}
@@ -37,6 +39,7 @@ internal/
   git/remote.go                  # Parse Bitbucket SSH/HTTPS remote URLs, detect branch
   pending/store.go               # Local pending comments store (~/.bbgo/pending_comments.json)
   secrets/keychain.go            # OS keychain (zalando/go-keyring) + AES-GCM file fallback
+  secrets/oauth.go               # OAuthCredentials persistence (keychain "bitbucket-oauth" / ~/.bbgo/oauth)
   secrets/redact.go              # RedactSecrets() + RedactWriter for stdout/stderr
   output/formatter.go            # PrintJSON() + Table (tabwriter)
 ```
@@ -44,8 +47,8 @@ internal/
 ## Key Architecture Decisions
 
 - **CLI framework:** `urfave/cli/v2` (not Cobra). Commands are `*cli.Command` structs returned by exported functions (`PRCommands()`, `ConfigCommands()`, etc.) and registered in `main.go`.
-- **Auth:** Bearer token (`Authorization: Bearer <token>`). Bitbucket deprecated app passwords; API tokens replaced them.
-- **Token storage:** OS keychain first → encrypted file fallback (`~/.bbgo/token`, AES-256-GCM). Token is loaded into unexported `loadedToken` var at startup, accessed via `secrets.Token()`.
+- **Auth:** Bearer token (`Authorization: Bearer <token>`). Two ways to get one: OAuth 2.0 browser login (`bbgo config login`, authorization-code flow with localhost callback on port 8976 — preferred, attributes actions to the real user) or a static API token. Resolution order in `cmd/helpers.go:newClient()`: `BBGO_TOKEN` env → OAuth session (auto-refresh via `refreshOAuth()`, refresh tokens rotate) → static token. The OAuth consumer must be registered by a workspace admin with callback `http://localhost:8976/callback`; Bitbucket does not support gcloud-style random loopback ports.
+- **Token storage:** OS keychain first → encrypted file fallback (`~/.bbgo/token`, AES-256-GCM). Token is loaded into unexported `loadedToken` var at startup, accessed via `secrets.Token()`. OAuth sessions are stored the same way as JSON under account `bitbucket-oauth` (fallback `~/.bbgo/oauth`); load/store via `secrets.LoadOAuth()`/`secrets.StoreOAuth()` — `LoadOAuth` returns `(nil, nil)` when not logged in.
 - **Security:** `RedactWriter` wraps `app.Writer` and `app.ErrWriter` in `main.go`. All output passes through `RedactSecrets()` which replaces the token and regex-matched secret patterns.
 - **Repo resolution chain:** `--repo` flag → `config.default_repo` → `git remote origin` auto-detect. Implemented in `cmd/helpers.go:resolveRepo()`.
 - **Output format resolution:** Subcommand `--output` flag → walks `c.Lineage()` for global `--output` flag → defaults to `"text"`. Implemented in `cmd/pr.go:getOutputFormat()`.
@@ -91,7 +94,7 @@ Tags are embedded as HTML comments in comment body: `<!-- bbgo:tag:TAG_NAME -->`
 
 ## Testing
 
-Tests exist for: config load/save, secret redaction, git URL parsing, comment tagging, client error types. No tests for cmd handlers (would need integration-level setup). Run `go test ./...` — all should pass.
+Tests exist for: config load/save, secret redaction, git URL parsing, comment tagging, client error types, OAuth (authorize URL, code exchange, refresh rotation, full loopback login flow with a fake browser, encrypted credential storage). No tests for cmd handlers (would need integration-level setup). Run `go test ./...` — all should pass.
 
 ## Bitbucket API Endpoints Used
 
