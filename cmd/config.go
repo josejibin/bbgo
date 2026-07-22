@@ -101,15 +101,13 @@ func configLogin(c *cli.Context) error {
 	clientID := c.String("client-id")
 	clientSecret := c.String("client-secret")
 
-	// Reuse consumer credentials from a previous login when not given.
-	if clientID == "" || clientSecret == "" {
+	// Reuse consumer credentials from a previous login only when neither flag
+	// is given — mixing a new client ID with an old stored secret (or vice
+	// versa) would fail confusingly at the token exchange.
+	if clientID == "" && clientSecret == "" {
 		if prev, err := secrets.LoadOAuth(); err == nil && prev != nil {
-			if clientID == "" {
-				clientID = prev.ClientID
-			}
-			if clientSecret == "" {
-				clientSecret = prev.ClientSecret
-			}
+			clientID = prev.ClientID
+			clientSecret = prev.ClientSecret
 		}
 	}
 	if clientID == "" || clientSecret == "" {

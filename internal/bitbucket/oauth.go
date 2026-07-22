@@ -131,6 +131,15 @@ type callbackResult struct {
 	err  error
 }
 
+// deliver hands a result to the login flow without blocking: only the first
+// callback wins; duplicate hits (e.g. a page refresh) are dropped.
+func deliver(ch chan<- callbackResult, res callbackResult) {
+	select {
+	case ch <- res:
+	default:
+	}
+}
+
 // BrowserLogin runs the authorization-code flow: it listens on
 // 127.0.0.1:port, opens the authorization URL via openBrowser, and exchanges
 // the returned code. port 0 picks a free port (tests only — real consumers
@@ -158,23 +167,23 @@ func (a *OAuthApp) BrowserLogin(port int, openBrowser func(url string) error, ou
 				desc = e
 			}
 			http.Error(w, "Authorization failed. You can close this tab.", http.StatusBadRequest)
-			resultCh <- callbackResult{err: fmt.Errorf("authorization denied: %s", desc)}
+			deliver(resultCh, callbackResult{err: fmt.Errorf("authorization denied: %s", desc)})
 			return
 		}
 		if q.Get("state") != state {
 			http.Error(w, "State mismatch. You can close this tab.", http.StatusBadRequest)
-			resultCh <- callbackResult{err: fmt.Errorf("state mismatch in OAuth callback")}
+			deliver(resultCh, callbackResult{err: fmt.Errorf("state mismatch in OAuth callback")})
 			return
 		}
 		code := q.Get("code")
 		if code == "" {
 			http.Error(w, "Missing code. You can close this tab.", http.StatusBadRequest)
-			resultCh <- callbackResult{err: fmt.Errorf("no authorization code in callback")}
+			deliver(resultCh, callbackResult{err: fmt.Errorf("no authorization code in callback")})
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, "<html><body><p>Logged in — you can close this tab and return to the terminal.</p></body></html>")
-		resultCh <- callbackResult{code: code}
+		deliver(resultCh, callbackResult{code: code})
 	})
 
 	srv := &http.Server{Handler: mux}
