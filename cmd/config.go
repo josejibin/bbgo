@@ -114,10 +114,10 @@ func configLogin(c *cli.Context) error {
 		return fmt.Errorf(`OAuth client credentials required for first login.
 
 Ask a workspace admin to create an OAuth client:
-  Bitbucket → Workspace settings → OAuth clients → Add client
+  Bitbucket → Workspace settings → OAuth clients → Create OAuth client
+  Grant types: Authorization code (do NOT enable Client credentials)
   Callback URL: http://localhost:%d/callback
-  Permissions: Account (read), Repositories (write), Pull requests (write)
-  Check "This is a private consumer"
+  Scopes: Account (read), Repositories (write), Pull requests (write)
 
 Then run: bbgo config login --client-id <key> --client-secret <secret>`, c.Int("port"))
 	}

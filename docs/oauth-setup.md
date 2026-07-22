@@ -34,60 +34,65 @@ behalf. Tokens auto-refresh; users never copy/paste anything.
 
 ![OAuth clients page with the Create OAuth client button](images/oauth-clients-page.png)
 
-## Step 2 — Fill in the client form
+## Step 2 — Fill in the dialog
+
+The **Create OAuth client** dialog has three tabs: **Details**, **Authorization**, and **Scopes**.
+
+### Details tab
 
 | Field | Value |
 |---|---|
 | **Name** | `bbgo CLI` (anything recognizable) |
 | **Description** | `Team CLI for PRs — users authenticate as themselves` |
+| **Learn more URL / EULA URL / Privacy policy URL** | Optional and purely informational (shown as links on the "Grant access" consent screen; Bitbucket never fetches them). Leave blank or point at your bbgo repo / internal wiki. |
+
+![Details tab of the Create OAuth client dialog](images/add-client-form.png)
+
+### Authorization tab
+
+| Field | Value |
+|---|---|
+| **Supported grant types** | ✅ **Authorization code** only (**Refresh token** is included automatically) |
 | **Callback URL** | `http://localhost:8976/callback` |
-| **URL / Website** | Your bbgo repo URL (or team intranet page) |
-| **Privacy policy URL** | Same as above — see note below |
-| **End user license agreement URL** | Same as above — see note below |
-| **Supported grant types** | **Authorization code** only (plus **Refresh token** if listed separately) |
-| **This is a private consumer** | ✅ **Checked** (required — enables the secret + refresh tokens) |
 
 > **Do not enable the Client credentials grant.** It lets anyone holding the client secret mint
 > tokens that act as the client's *creator* (an admin) with no user consent — recreating the
 > bot-attribution problem this setup exists to avoid, and needlessly raising the stakes if the
 > secret leaks. bbgo only needs Authorization code (+ refresh).
 
-> **About the URL fields:** these are purely informational — they appear as links on the
-> "Grant access" consent screen so end users can see what they're authorizing. Bitbucket does not
-> fetch or validate their content. For an internal tool, pointing all of them at the bbgo repo
-> (or an internal wiki page describing the tool) is fine; leave blank any the form marks optional.
-
 > **The callback URL must match exactly.** Bitbucket validates it on every login, including the
 > port. If you register a different port here, users must pass `--port N` to `bbgo config login`.
 > Bitbucket does not support random loopback ports the way Google's OAuth does.
 
-<!-- screenshot: images/add-client-form.png — the Add client form with callback URL and private-client checkbox filled in -->
+![Authorization tab: grant types and callback URL](images/authorization-grant-types.png)
 
-## Step 3 — Set permissions (scopes)
+### Scopes tab
 
-Under **Permissions**, check:
+Check:
 
-| Permission | Level | Used by |
+| Scope | Level | Used by |
 |---|---|---|
 | Account | Read | `config verify`, identity check after login |
-| Repositories | Write | `file get`, repo resolution |
-| Pull requests | Write | `pr create`, `comment`, `review approve` / `request-changes` |
+| Repositories | Write (Read is implied) | `file get`, repo resolution |
+| Pull requests | Write (Read is implied) | `pr create`, `comment`, `review approve` / `request-changes` |
 
-Leave everything else unchecked — bbgo does not need Webhooks, Pipelines, Issues, or admin scopes.
+Leave everything else unchecked — bbgo does not need Wikis, Snippets, Issues, Webhooks, Pipelines,
+or admin scopes. (Grayed-out checkmarks are implied by your selections and are fine.)
 
-<!-- screenshot: images/client-permissions.png — the Permissions checklist with Account/Repositories/Pull requests selected -->
+![Scopes tab with Account read, Repositories write, Pull requests write](images/client-permissions.png)
 
-## Step 4 — Save and share the credentials
+## Step 3 — Save and share the credentials
 
-After saving, the client appears in the list. Click its name to reveal:
+On save, an **"OAuth client created"** dialog shows the **Client ID** and the **Secret** (masked,
+with copy buttons). You can retrieve both later from the client's row in the list.
 
-- **Key** — this is the *client ID* (not secret; fine to put in a team wiki)
+- **Client ID** — not secret; fine to put in a team wiki
 - **Secret** — treat like a password: share via your password manager or secrets tool,
   not chat or email
 
-<!-- screenshot: images/client-key-secret.png — the expanded client row showing Key and Secret -->
+![OAuth client created dialog showing Client ID and masked Secret](images/client-key-secret.png)
 
-## Step 5 — Tell the team
+## Step 4 — Tell the team
 
 Each member runs, once:
 
